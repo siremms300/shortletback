@@ -1,17 +1,9 @@
-// server/api/index.js - Complete bridge file
-require = require("esm")(module, {
-  // Enable all the features for best compatibility
-  cjs: true,           // Enable CommonJS detection
-  cache: true,         // Cache modules for performance
-  sourceMap: false,    // Disable source maps for production
-  await: true          // Support top-level await
-});
+// server/api/index.js - Vercel Serverless Entry Point
 
-// Load your original Express app
+// Import the main Express app
 const app = require("../index.js");
 
-// Export for Vercel
+// Export as serverless function
 module.exports = app;
 
-// Log when loaded
-console.log("✅ Bridge file loaded successfully");
+console.log("✅ Vercel serverless handler loaded");
