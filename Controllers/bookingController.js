@@ -776,6 +776,109 @@ const bookingController = {
   },
 
   // Upload proof of payment for bank transfer
+  // uploadProofOfPayment: async (req, res) => {
+  //   try {
+  //     const { id } = req.params;
+  //     const proofFile = req.file;
+
+  //     if (!proofFile) {
+  //       return res.status(400).json({ 
+  //         success: false,
+  //         message: "Proof of payment file is required" 
+  //       });
+  //     }
+
+  //     const booking = await Booking.findById(id)
+  //       .populate('property', 'title')
+  //       .populate('user', 'firstName lastName email');
+
+  //     if (!booking) {
+  //       return res.status(404).json({ 
+  //         success: false,
+  //         message: "Booking not found" 
+  //       });
+  //     }
+
+  //     // Check if user owns booking
+  //     if (booking.user._id.toString() !== req.user.id && req.user.role !== 'admin') {
+  //       return res.status(403).json({ 
+  //         success: false,
+  //         message: "Access denied" 
+  //       });
+  //     }
+
+  //     // Check if booking is for bank transfer
+  //     if (booking.paymentMethod !== 'bank_transfer') {
+  //       return res.status(400).json({ 
+  //         success: false,
+  //         message: "This booking is not for bank transfer" 
+  //       });
+  //     }
+
+  //     // Check if bank transfer details exist
+  //     if (!booking.bankTransferDetails) {
+  //       booking.bankTransferDetails = {
+  //         accountName: 'Hols Apartments Ltd',
+  //         accountNumber: '0900408855',
+  //         bankName: 'GT Bank',
+  //         transferReference: `TRF-${Date.now()}`,
+  //         status: 'pending'
+  //       };
+  //     }
+
+  //     // Update bank transfer details with proof
+  //     booking.bankTransferDetails.proofOfPayment = `/uploads/payments/${proofFile.filename}`;
+  //     booking.bankTransferDetails.status = 'pending';
+  //     booking.paymentStatus = 'pending'; // Ensure it's pending for verification
+  //     booking.bookingStatus = 'pending'; // Ensure booking is pending until verified
+      
+  //     await booking.save();
+
+  //     // Notify admin about uploaded proof
+  //     try {
+  //       await emailService.sendPaymentProofNotification(booking);
+  //     } catch (emailError) {
+  //       console.error('Failed to send proof notification:', emailError);
+  //     }
+
+  //     // Send confirmation to user
+  //     try {
+  //       await emailService.sendProofUploadConfirmation(booking);
+  //     } catch (emailError) {
+  //       console.error('Failed to send upload confirmation:', emailError);
+  //     }
+
+  //     res.status(200).json({
+  //       success: true,
+  //       message: "Proof of payment uploaded successfully. Admin will verify your payment.",
+  //       booking: {
+  //         _id: booking._id,
+  //         paymentStatus: booking.paymentStatus,
+  //         bookingStatus: booking.bookingStatus,
+  //         bankTransferDetails: booking.bankTransferDetails
+  //       }
+  //     });
+
+  //   } catch (error) {
+  //     console.error('Upload proof error:', error);
+      
+  //     if (error.name === 'ValidationError') {
+  //       return res.status(400).json({ 
+  //         success: false,
+  //         message: "Validation error",
+  //         error: error.message 
+  //       });
+  //     }
+      
+  //     res.status(500).json({ 
+  //       success: false,
+  //       message: "Failed to upload proof of payment", 
+  //       error: error.message 
+  //     });
+  //   }
+  // },
+
+  // In bookingController.js - update the uploadProofOfPayment function
   uploadProofOfPayment: async (req, res) => {
     try {
       const { id } = req.params;
@@ -815,22 +918,34 @@ const bookingController = {
         });
       }
 
-      // Check if bank transfer details exist
+      // Handle file path for Vercel vs local
+      let proofPath;
+      if (process.env.VERCEL && proofFile.isVercel) {
+        // On Vercel: File is in memory
+        console.log('Vercel proof upload - storing in memory');
+        proofPath = `/uploads/payments/${proofFile.filename}`;
+        // In production, you would upload to cloud storage here
+      } else {
+        // Local: File is saved to disk
+        proofPath = `/uploads/payments/${proofFile.filename}`;
+      }
+
+      // Initialize or update bank transfer details
       if (!booking.bankTransferDetails) {
         booking.bankTransferDetails = {
           accountName: 'Hols Apartments Ltd',
           accountNumber: '0900408855',
           bankName: 'GT Bank',
-          transferReference: `TRF-${Date.now()}`,
+          transferReference: `TRF-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
           status: 'pending'
         };
       }
 
-      // Update bank transfer details with proof
-      booking.bankTransferDetails.proofOfPayment = `/uploads/payments/${proofFile.filename}`;
+      // Update with proof path
+      booking.bankTransferDetails.proofOfPayment = proofPath;
       booking.bankTransferDetails.status = 'pending';
-      booking.paymentStatus = 'pending'; // Ensure it's pending for verification
-      booking.bookingStatus = 'pending'; // Ensure booking is pending until verified
+      booking.paymentStatus = 'pending';
+      booking.bookingStatus = 'pending';
       
       await booking.save();
 

@@ -263,6 +263,97 @@ const propertyController = {
 
 
  
+  // createProperty: async (req, res) => {
+  //   try {
+  //     const {
+  //       title,
+  //       description,
+  //       type,
+  //       price,
+  //       location,
+  //       bedrooms,
+  //       bathrooms,
+  //       maxGuests,
+  //       squareFeet,
+  //       amenities
+  //     } = req.body;
+
+  //     // Parse amenities if it's a string and validate they exist
+  //     let amenitiesArray = [];
+  //     if (amenities) {
+  //       amenitiesArray = typeof amenities === 'string' ? JSON.parse(amenities) : amenities;
+        
+  //       // Validate that all amenity IDs exist and are active
+  //       if (amenitiesArray.length > 0) {
+  //         const existingAmenities = await Amenity.find({
+  //           _id: { $in: amenitiesArray },
+  //           isActive: true
+  //         });
+          
+  //         if (existingAmenities.length !== amenitiesArray.length) {
+  //           return res.status(400).json({ 
+  //             message: "Some amenities are invalid or inactive" 
+  //           });
+  //         }
+  //       }
+  //     }
+
+  //     // Handle image uploads
+  //     const images = req.files ? req.files.map((file, index) => ({
+  //       url: `/uploads/properties/${file.filename}`,
+  //       isMain: index === 0,
+  //       order: index
+  //     })) : [];
+
+  //     if (!req.files || req.files.length === 0) {
+  //       return res.status(400).json({ message: "At least one image is required" });
+  //     }
+
+  //     const property = new Property({
+  //       title,
+  //       description,
+  //       type,
+  //       price: parseFloat(price),
+  //       location,
+  //       specifications: {
+  //         bedrooms: parseInt(bedrooms) || 0,
+  //         bathrooms: parseInt(bathrooms) || 0,
+  //         maxGuests: parseInt(maxGuests) || 1,
+  //         squareFeet: parseInt(squareFeet) || 0
+  //       },
+  //       amenities: amenitiesArray,
+  //       images,
+  //       owner: req.user.id,
+  //       status: 'active'
+  //     });
+
+  //     await property.save();
+
+  //     // Add property to user's propertyList
+  //     await User.findByIdAndUpdate(req.user.id, {
+  //       $push: { propertyList: property._id }
+  //     });
+
+  //     const populatedProperty = await Property.findById(property._id)
+  //       .populate('owner', 'firstName lastName email profileImagePath')
+  //       .populate('amenities', 'name icon category');
+
+  //     res.status(201).json({
+  //       message: "Property created successfully",
+  //       property: populatedProperty
+  //     });
+
+  //   } catch (err) {
+  //     console.error('Create property error:', err);
+  //     res.status(500).json({ 
+  //       message: "Failed to create property", 
+  //       error: err.message 
+  //     });
+  //   }
+  // },
+
+  // In propertyController.js - update createProperty and updateProperty functions
+
   createProperty: async (req, res) => {
     try {
       const {
@@ -298,14 +389,31 @@ const propertyController = {
         }
       }
 
-      // Handle image uploads
-      const images = req.files ? req.files.map((file, index) => ({
-        url: `/uploads/properties/${file.filename}`,
-        isMain: index === 0,
-        order: index
-      })) : [];
+      // Handle image uploads for Vercel vs local
+      let images = [];
+      if (req.files && req.files.length > 0) {
+        images = req.files.map((file, index) => {
+          // Handle Vercel memory storage
+          let imageUrl;
+          if (process.env.VERCEL && file.isVercel) {
+            // On Vercel: File is in memory
+            console.log('Vercel property upload - image in memory');
+            imageUrl = `/uploads/properties/${file.filename}`;
+            // In production, upload to cloud storage here
+          } else {
+            // Local: File is saved to disk
+            imageUrl = `/uploads/properties/${file.filename}`;
+          }
+          
+          return {
+            url: imageUrl,
+            isMain: index === 0,
+            order: index
+          };
+        });
+      }
 
-      if (!req.files || req.files.length === 0) {
+      if (images.length === 0) {
         return res.status(400).json({ message: "At least one image is required" });
       }
 

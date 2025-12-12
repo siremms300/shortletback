@@ -9,6 +9,63 @@ const authController = {
   /* USER REGISTER */
   
 
+  // register: async (req, res) => {
+  //   try {
+  //     const { firstName, lastName, email, password } = req.body;
+  //     const profileImage = req.file;
+
+  //     /* Check if user exists */
+  //     const existingUser = await User.findOne({ email });
+  //     if (existingUser) {
+  //       return res.status(409).json({ message: "User already exists!" });
+  //     }
+
+  //     /* Hash the password */
+  //     const salt = await bcrypt.genSalt();
+  //     const hashedPassword = await bcrypt.hash(password, salt);
+
+  //     /* Create user data object */
+  //     const userData = {
+  //       firstName,
+  //       lastName,
+  //       email,
+  //       password: hashedPassword,
+  //     };
+
+  //     /* Add profile image path if provided */
+  //     if (profileImage) {
+  //       userData.profileImagePath = profileImage.path;
+  //     }
+
+  //     /* Create a new User */
+  //     const newUser = new User(userData);
+
+  //     /* Save the new User */
+  //     await newUser.save();
+
+  //     /* Send welcome email */
+  //     emailService.sendWelcomeEmail(newUser).catch(error => {
+  //       console.error('Failed to send welcome email:', error);
+  //     });
+
+  //     /* Remove password from response */
+  //     const userResponse = { ...newUser._doc };
+  //     delete userResponse.password;
+
+  //     /* Send a successful message */
+  //     res.status(200).json({ 
+  //       message: "User registered successfully! Welcome email sent.", 
+  //       user: userResponse 
+  //     });
+  //   } catch (err) {
+  //     console.log(err);
+  //     res.status(500).json({ 
+  //       message: "Registration failed!", 
+  //       error: err.message 
+  //     });
+  //   }
+  // },
+
   register: async (req, res) => {
     try {
       const { firstName, lastName, email, password } = req.body;
@@ -34,7 +91,16 @@ const authController = {
 
       /* Add profile image path if provided */
       if (profileImage) {
-        userData.profileImagePath = profileImage.path;
+        // Handle Vercel vs local storage
+        if (process.env.VERCEL && profileImage.isVercel) {
+          // On Vercel: File is in memory buffer
+          // For now, we'll just store the filename and handle cloud storage later
+          userData.profileImagePath = `/uploads/users/${profileImage.filename}`;
+          console.log('Vercel registration - profile image received in memory');
+        } else {
+          // Local: File is saved to disk
+          userData.profileImagePath = profileImage.path;
+        }
       }
 
       /* Create a new User */
@@ -64,7 +130,7 @@ const authController = {
         error: err.message 
       });
     }
-  },
+  }, 
 
   /* USER LOGIN */
   login: async (req, res) => {
@@ -309,3 +375,6 @@ const authController = {
 };
 
 module.exports = authController;
+
+
+  
