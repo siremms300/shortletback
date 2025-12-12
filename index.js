@@ -170,6 +170,40 @@ app.use("/inventory", inventoryRoutes);
 app.use("/maintenance", maintenanceRoutes); 
 app.use("/staff", staffRoutes);
 
+
+// Add this in your server/index.js, after all your other routes but BEFORE the 404 handler
+
+/* Root Route - Welcome Message */
+app.get("/", (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "Welcome to Hols Apartments API",
+    version: "1.0.0",
+    documentation: "https://github.com/siremms300/shortletback",
+    endpoints: {
+      auth: "/auth",
+      users: "/users",
+      properties: "/properties",
+      bookings: "/bookings",
+      amenities: "/amenities",
+      vendors: "/api/vendors",
+      housekeeping: "/housekeeping",
+      inventory: "/inventory",
+      maintenance: "/maintenance",
+      staff: "/staff"
+    },
+    health: "/health",
+    test: "/test",
+    mobileTest: "/mobile-test",
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || "development",
+    deployed: process.env.VERCEL ? "Vercel" : "Local"
+  });
+});
+
+
+
+
 /* Health Check with DB status */
 app.get("/health", async (req, res) => {
   const dbStatus = mongoose.connection.readyState === 1 ? "connected" : "disconnected";
