@@ -28,60 +28,78 @@ app.use(helmet({
 }));
 
 // FIXED: Mobile-compatible CORS
+// app.use(cors({
+//   origin: function (origin, callback) {
+//     // Allow requests with no origin (like mobile apps or curl)
+//     if (!origin) return callback(null, true);
+    
+//     const allowedOrigins = [
+//       process.env.CLIENT_URL,
+//       "https://shortletfront-vcd6.vercel.app",
+//       "https://shortletfront.vercel.app",
+//       "http://localhost:3000",
+//       "http://localhost:3001",
+//       "http://localhost:8080",
+//       "http://localhost:8100", // Ionic dev server
+//       "capacitor://localhost",
+//       "ionic://localhost"
+//     ].filter(Boolean);
+    
+//     // Check if origin matches any allowed origin
+//     const originMatches = allowedOrigins.some(allowedOrigin => {
+//       // Remove trailing slashes for comparison
+//       const cleanOrigin = origin.replace(/\/$/, '');
+//       const cleanAllowed = allowedOrigin.replace(/\/$/, '');
+//       return cleanOrigin === cleanAllowed;
+//     });
+    
+//     if (originMatches || !origin) {
+//       callback(null, true);
+//     } else {
+//       console.log('CORS blocked for origin:', origin);
+//       callback(new Error('Not allowed by CORS'));
+//     }
+//   },
+//   credentials: true,
+//   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+//   allowedHeaders: [
+//     'Content-Type', 
+//     'Authorization', 
+//     'X-Requested-With',
+//     'Accept',
+//     'Origin',
+//     'Access-Control-Request-Method',
+//     'Access-Control-Request-Headers',
+//     'X-API-Key'
+//   ],
+//   exposedHeaders: [
+//     'Content-Range', 
+//     'X-Content-Range',
+//     'Access-Control-Allow-Origin',
+//     'Access-Control-Allow-Credentials'
+//   ],
+//   optionsSuccessStatus: 204,
+//   preflightContinue: false,
+//   maxAge: 86400 // 24 hours
+// }));
+
+// ULTIMATE CORS FIX - Replace your current CORS setup with this
 app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl)
-    if (!origin) return callback(null, true);
-    
-    const allowedOrigins = [
-      process.env.CLIENT_URL,
-      "https://shortletfront-vcd6.vercel.app",
-      "https://shortletfront.vercel.app",
-      "http://localhost:3000",
-      "http://localhost:3001",
-      "http://localhost:8080",
-      "http://localhost:8100", // Ionic dev server
-      "capacitor://localhost",
-      "ionic://localhost"
-    ].filter(Boolean);
-    
-    // Check if origin matches any allowed origin
-    const originMatches = allowedOrigins.some(allowedOrigin => {
-      // Remove trailing slashes for comparison
-      const cleanOrigin = origin.replace(/\/$/, '');
-      const cleanAllowed = allowedOrigin.replace(/\/$/, '');
-      return cleanOrigin === cleanAllowed;
-    });
-    
-    if (originMatches || !origin) {
-      callback(null, true);
-    } else {
-      console.log('CORS blocked for origin:', origin);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: [
+    'https://shortletfront-vcd6.vercel.app',
+    'https://shortletfront.vercel.app',
+    'http://localhost:3000',
+    'http://localhost:3001'
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: [
-    'Content-Type', 
-    'Authorization', 
-    'X-Requested-With',
-    'Accept',
-    'Origin',
-    'Access-Control-Request-Method',
-    'Access-Control-Request-Headers',
-    'X-API-Key'
-  ],
-  exposedHeaders: [
-    'Content-Range', 
-    'X-Content-Range',
-    'Access-Control-Allow-Origin',
-    'Access-Control-Allow-Credentials'
-  ],
-  optionsSuccessStatus: 204,
-  preflightContinue: false,
-  maxAge: 86400 // 24 hours
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range']
 }));
+
+// Simple OPTIONS handler
+app.options('*', cors());
+
 
 // Handle OPTIONS/preflight requests
 app.options('*', (req, res) => {
