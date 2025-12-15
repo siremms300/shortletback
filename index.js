@@ -86,8 +86,7 @@ app.use(helmet({
 // ULTIMATE CORS FIX - Replace your current CORS setup with this
 app.use(cors({
   origin: [
-    'https://shortletfront-vcd6.vercel.app',
-    'https://shortletfront.vercel.app',
+    'https://holsapartments.vercel.app',
     'http://localhost:3000',
     'http://localhost:3001'
   ],
@@ -115,8 +114,7 @@ app.use((req, res, next) => {
   // Set CORS headers for all responses
   const origin = req.headers.origin;
   const allowedOrigins = [
-    "https://holsapartments.vercel.app",
-    "https://holsapartments.vercel.app",
+    "https://holsapartments.vercel.app", 
     "http://localhost:3000",
     "http://localhost:3001"
   ];
