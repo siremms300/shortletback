@@ -115,8 +115,8 @@ app.use((req, res, next) => {
   // Set CORS headers for all responses
   const origin = req.headers.origin;
   const allowedOrigins = [
-    "https://shortletfront-vcd6.vercel.app",
-    "https://shortletfront.vercel.app",
+    "https://holsapartments.vercel.app",
+    "https://holsapartments.vercel.app",
     "http://localhost:3000",
     "http://localhost:3001"
   ];
