@@ -62,125 +62,250 @@ const userController = {
 
   // In userController.js - update uploadDocument and updateProfile functions
 
-uploadDocument: async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const { documentType, documentNumber } = req.body;
-    const documentFile = req.file;
+// uploadDocument: async (req, res) => {
+//   try {
+//     const { userId } = req.params;
+//     const { documentType, documentNumber } = req.body;
+//     const documentFile = req.file;
 
-    if (!documentFile) {
-      return res.status(400).json({ message: "No document file uploaded" });
-    }
+//     if (!documentFile) {
+//       return res.status(400).json({ message: "No document file uploaded" });
+//     }
 
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
+//     const user = await User.findById(userId);
+//     if (!user) {
+//       return res.status(404).json({ message: "User not found" });
+//     }
 
-    // Handle Vercel vs local file storage
-    let documentPath;
-    if (process.env.VERCEL && documentFile.isVercel) {
-      // On Vercel: File is in memory
-      console.log('Vercel document upload - storing in memory');
-      documentPath = `/uploads/users/${documentFile.filename}`;
-      // In production, upload to cloud storage here
-    } else {
-      // Local: File is saved to disk
-      documentPath = documentFile.path;
-    }
+//     // Handle Vercel vs local file storage
+//     let documentPath;
+//     if (process.env.VERCEL && documentFile.isVercel) {
+//       // On Vercel: File is in memory
+//       console.log('Vercel document upload - storing in memory');
+//       documentPath = `/uploads/users/${documentFile.filename}`;
+//       // In production, upload to cloud storage here
+//     } else {
+//       // Local: File is saved to disk
+//       documentPath = documentFile.path;
+//     }
 
-    // Check if document type already exists
-    const existingDoc = user.documents.find(doc => 
-      doc.documentType === documentType && doc.status !== 'rejected'
-    );
+//     // Check if document type already exists
+//     const existingDoc = user.documents.find(doc => 
+//       doc.documentType === documentType && doc.status !== 'rejected'
+//     );
 
-    if (existingDoc) {
-      return res.status(400).json({ 
-        message: `You already have a ${documentType} document uploaded. Please wait for review or contact support.` 
+//     if (existingDoc) {
+//       return res.status(400).json({ 
+//         message: `You already have a ${documentType} document uploaded. Please wait for review or contact support.` 
+//       });
+//     }
+
+//     // Add document to user's documents array
+//     user.documents.push({
+//       documentType,
+//       documentNumber,
+//       documentPath,
+//       status: 'pending'
+//     });
+
+//     // Update verification status
+//     user.updateVerificationStatus();
+
+//     await user.save();
+
+//     const updatedUser = await User.findById(userId).select("-password -refreshTokens");
+
+//     // Send email notification to admin
+//     emailService.sendDocumentUploadNotification(user, documentType)
+//       .catch(error => console.error('Error sending upload notification:', error));
+
+//     res.status(200).json({
+//       message: "Document uploaded successfully and is under review",
+//       user: updatedUser
+//     });
+
+//   } catch (err) {
+//     console.log(err);
+//     res.status(500).json({ error: err.message });
+//   }
+// },
+
+// updateProfile: async (req, res) => {
+//   try {
+//     const { firstName, lastName, email, phone, dateOfBirth, bio } = req.body;
+//     const profileImage = req.file;
+//     const userId = req.params.userId;
+
+//     // Check if user exists
+//     const user = await User.findById(userId);
+//     if (!user) {
+//       return res.status(404).json({ message: "User not found" });
+//     }
+
+//     // Check if email is being changed and if it's already taken
+//     if (email !== user.email) {
+//       const existingUser = await User.findOne({ email });
+//       if (existingUser && existingUser._id.toString() !== userId) {
+//         return res.status(400).json({ message: "Email already exists" });
+//       }
+//     }
+
+//     // Update fields
+//     const updateData = { firstName, lastName, email, phone, dateOfBirth, bio };
+    
+//     if (profileImage) {
+//       // Handle Vercel vs local
+//       if (process.env.VERCEL && profileImage.isVercel) {
+//         updateData.profileImagePath = `/uploads/users/${profileImage.filename}`;
+//       } else {
+//         updateData.profileImagePath = profileImage.path;
+//       }
+//     }
+
+//     const updatedUser = await User.findByIdAndUpdate(
+//       userId,
+//       updateData,
+//       { new: true, runValidators: true }
+//     ).select("-password -refreshTokens");
+
+//     res.status(200).json({
+//       message: "Profile updated successfully",
+//       user: updatedUser
+//     });
+
+//   } catch (err) {
+//     console.log(err);
+//     if (err.code === 11000) {
+//       return res.status(400).json({ message: "Email already exists" });
+//     }
+//     res.status(500).json({ error: err.message });
+//   }
+// },
+
+
+// In userController.js - update uploadDocument function
+  uploadDocument: async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { documentType, documentNumber } = req.body;
+      const documentFile = req.file;
+
+      if (!documentFile) {
+        return res.status(400).json({ message: "No document file uploaded" });
+      }
+
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Get URL from Cloudinary or fallback to path
+      const documentUrl = documentFile.cloudinary?.url || documentFile.path;
+      
+      console.log('Processing document upload:', {
+        originalName: documentFile.originalname,
+        cloudinaryUrl: documentFile.cloudinary?.url,
+        localPath: documentFile.path,
+        finalUrl: documentUrl
       });
+
+      // Check if document type already exists
+      const existingDoc = user.documents.find(doc => 
+        doc.documentType === documentType && doc.status !== 'rejected'
+      );
+
+      if (existingDoc) {
+        return res.status(400).json({ 
+          message: `You already have a ${documentType} document uploaded. Please wait for review or contact support.` 
+        });
+      }
+
+      // Add document to user's documents array with Cloudinary URL
+      user.documents.push({
+        documentType,
+        documentNumber,
+        documentPath: documentUrl,
+        status: 'pending'
+      });
+
+      // Update verification status
+      user.updateVerificationStatus();
+
+      await user.save();
+
+      const updatedUser = await User.findById(userId).select("-password -refreshTokens");
+
+      // Send email notification to admin
+      emailService.sendDocumentUploadNotification(user, documentType)
+        .catch(error => console.error('Error sending upload notification:', error));
+
+      res.status(200).json({
+        message: "Document uploaded successfully and is under review",
+        user: updatedUser
+      });
+
+    } catch (err) {
+      console.log(err);
+      res.status(500).json({ error: err.message });
     }
+  },
 
-    // Add document to user's documents array
-    user.documents.push({
-      documentType,
-      documentNumber,
-      documentPath,
-      status: 'pending'
-    });
+  // Update updateProfile function
+  updateProfile: async (req, res) => {
+    try {
+      const { firstName, lastName, email, phone, dateOfBirth, bio } = req.body;
+      const profileImage = req.file;
+      const userId = req.params.userId;
 
-    // Update verification status
-    user.updateVerificationStatus();
+      // Check if user exists
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
 
-    await user.save();
+      // Check if email is being changed and if it's already taken
+      if (email !== user.email) {
+        const existingUser = await User.findOne({ email });
+        if (existingUser && existingUser._id.toString() !== userId) {
+          return res.status(400).json({ message: "Email already exists" });
+        }
+      }
 
-    const updatedUser = await User.findById(userId).select("-password -refreshTokens");
+      // Update fields
+      const updateData = { firstName, lastName, email, phone, dateOfBirth, bio };
+      
+      if (profileImage) {
+        // Get URL from Cloudinary or fallback to path
+        const profileImageUrl = profileImage.cloudinary?.url || profileImage.path;
+        
+        console.log('Updating profile image:', {
+          originalName: profileImage.originalname,
+          cloudinaryUrl: profileImage.cloudinary?.url,
+          finalUrl: profileImageUrl
+        });
+        
+        updateData.profileImagePath = profileImageUrl;
+      }
 
-    // Send email notification to admin
-    emailService.sendDocumentUploadNotification(user, documentType)
-      .catch(error => console.error('Error sending upload notification:', error));
+      const updatedUser = await User.findByIdAndUpdate(
+        userId,
+        updateData,
+        { new: true, runValidators: true }
+      ).select("-password -refreshTokens");
 
-    res.status(200).json({
-      message: "Document uploaded successfully and is under review",
-      user: updatedUser
-    });
+      res.status(200).json({
+        message: "Profile updated successfully",
+        user: updatedUser
+      });
 
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ error: err.message });
-  }
-},
-
-updateProfile: async (req, res) => {
-  try {
-    const { firstName, lastName, email, phone, dateOfBirth, bio } = req.body;
-    const profileImage = req.file;
-    const userId = req.params.userId;
-
-    // Check if user exists
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    // Check if email is being changed and if it's already taken
-    if (email !== user.email) {
-      const existingUser = await User.findOne({ email });
-      if (existingUser && existingUser._id.toString() !== userId) {
+    } catch (err) {
+      console.log(err);
+      if (err.code === 11000) {
         return res.status(400).json({ message: "Email already exists" });
       }
+      res.status(500).json({ error: err.message });
     }
-
-    // Update fields
-    const updateData = { firstName, lastName, email, phone, dateOfBirth, bio };
-    
-    if (profileImage) {
-      // Handle Vercel vs local
-      if (process.env.VERCEL && profileImage.isVercel) {
-        updateData.profileImagePath = `/uploads/users/${profileImage.filename}`;
-      } else {
-        updateData.profileImagePath = profileImage.path;
-      }
-    }
-
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      updateData,
-      { new: true, runValidators: true }
-    ).select("-password -refreshTokens");
-
-    res.status(200).json({
-      message: "Profile updated successfully",
-      user: updatedUser
-    });
-
-  } catch (err) {
-    console.log(err);
-    if (err.code === 11000) {
-      return res.status(400).json({ message: "Email already exists" });
-    }
-    res.status(500).json({ error: err.message });
-  }
-},
+  },
 
   /* VERIFY/APPROVE DOCUMENT (Admin only) */
   verifyDocument: async (req, res) => {

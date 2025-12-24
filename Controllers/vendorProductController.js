@@ -2,6 +2,66 @@ const { Vendor, VendorProduct } = require("../Models/VendorModel");
 
 const vendorProductController = {
   // Add product to vendor (Admin only)
+  // createProduct: async (req, res) => {
+  //   try {
+  //     const {
+  //       name,
+  //       description,
+  //       category,
+  //       price,
+  //       stockQuantity,
+  //       minOrderQuantity,
+  //       maxOrderQuantity,
+  //       preparationTime,
+  //       tags,
+  //       vendorId
+  //     } = req.body;
+
+  //     const images = req.files ? req.files.map((file, index) => ({
+  //       url: `/uploads/vendor-products/${file.filename}`,
+  //       isMain: index === 0
+  //     })) : [];
+
+  //     // Verify vendor exists and is active
+  //     const vendor = await Vendor.findOne({ _id: vendorId, status: 'active' });
+  //     if (!vendor) {
+  //       return res.status(404).json({ message: "Active vendor not found" });
+  //     }
+
+  //     const product = new VendorProduct({
+  //       name,
+  //       description,
+  //       category,
+  //       price: parseFloat(price),
+  //       images,
+  //       vendor: vendorId,
+  //       stockQuantity: parseInt(stockQuantity) || 0,
+  //       minOrderQuantity: parseInt(minOrderQuantity) || 1,
+  //       maxOrderQuantity: parseInt(maxOrderQuantity) || 10,
+  //       preparationTime: parseInt(preparationTime) || 30,
+  //       tags: tags || []
+  //     });
+
+  //     await product.save();
+
+  //     const populatedProduct = await VendorProduct.findById(product._id)
+  //       .populate('vendor', 'businessName');
+
+  //     res.status(201).json({
+  //       message: "Product created successfully",
+  //       product: populatedProduct
+  //     });
+
+  //   } catch (error) {
+  //     console.error('Create product error:', error);
+  //     res.status(500).json({ 
+  //       message: "Failed to create product", 
+  //       error: error.message 
+  //     });
+  //   }
+  // },
+
+  // In vendorProductController.js - update createProduct function
   createProduct: async (req, res) => {
     try {
       const {
@@ -17,10 +77,21 @@ const vendorProductController = {
         vendorId
       } = req.body;
 
-      const images = req.files ? req.files.map((file, index) => ({
-        url: `/uploads/vendor-products/${file.filename}`,
-        isMain: index === 0
-      })) : [];
+      // Handle image uploads for Cloudinary
+      const images = req.files ? req.files.map((file, index) => {
+        const imageUrl = file.cloudinary?.url || file.path;
+        
+        console.log('Processing vendor product image:', {
+          originalName: file.originalname,
+          cloudinaryUrl: file.cloudinary?.url,
+          finalUrl: imageUrl
+        });
+        
+        return {
+          url: imageUrl,
+          isMain: index === 0
+        };
+      }) : [];
 
       // Verify vendor exists and is active
       const vendor = await Vendor.findOne({ _id: vendorId, status: 'active' });
@@ -56,6 +127,55 @@ const vendorProductController = {
       console.error('Create product error:', error);
       res.status(500).json({ 
         message: "Failed to create product", 
+        error: error.message 
+      });
+    }
+  },
+
+  // Also update the updateProduct function:
+  updateProduct: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updateData = req.body;
+
+      // Handle image uploads for Cloudinary
+      if (req.files && req.files.length > 0) {
+        const newImages = req.files.map((file, index) => {
+          const imageUrl = file.cloudinary?.url || file.path;
+          
+          console.log('Adding vendor product image:', {
+            originalName: file.originalname,
+            cloudinaryUrl: file.cloudinary?.url,
+            finalUrl: imageUrl
+          });
+          
+          return {
+            url: imageUrl,
+            isMain: index === 0
+          };
+        });
+        updateData.$push = { images: { $each: newImages } };
+      }
+
+      const product = await VendorProduct.findByIdAndUpdate(
+        id,
+        updateData,
+        { new: true, runValidators: true }
+      ).populate('vendor', 'businessName');
+
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+
+      res.status(200).json({
+        message: "Product updated successfully",
+        product
+      });
+
+    } catch (error) {
+      console.error('Update product error:', error);
+      res.status(500).json({ 
+        message: "Failed to update product", 
         error: error.message 
       });
     }
@@ -151,43 +271,43 @@ const vendorProductController = {
   },
 
 //   // Update product (Admin only)
-  updateProduct: async (req, res) => {
-    try {
-      const { id } = req.params;
-      const updateData = req.body;
+  // updateProduct: async (req, res) => {
+  //   try {
+  //     const { id } = req.params;
+  //     const updateData = req.body;
 
-      // Handle image uploads
-      if (req.files && req.files.length > 0) {
-        const newImages = req.files.map((file, index) => ({
-          url: `/uploads/vendor-products/${file.filename}`,
-          isMain: index === 0
-        }));
-        updateData.$push = { images: { $each: newImages } };
-      }
+  //     // Handle image uploads
+  //     if (req.files && req.files.length > 0) {
+  //       const newImages = req.files.map((file, index) => ({
+  //         url: `/uploads/vendor-products/${file.filename}`,
+  //         isMain: index === 0
+  //       }));
+  //       updateData.$push = { images: { $each: newImages } };
+  //     }
 
-      const product = await VendorProduct.findByIdAndUpdate(
-        id,
-        updateData,
-        { new: true, runValidators: true }
-      ).populate('vendor', 'businessName');
+  //     const product = await VendorProduct.findByIdAndUpdate(
+  //       id,
+  //       updateData,
+  //       { new: true, runValidators: true }
+  //     ).populate('vendor', 'businessName');
 
-      if (!product) {
-        return res.status(404).json({ message: "Product not found" });
-      }
+  //     if (!product) {
+  //       return res.status(404).json({ message: "Product not found" });
+  //     }
 
-      res.status(200).json({
-        message: "Product updated successfully",
-        product
-      });
+  //     res.status(200).json({
+  //       message: "Product updated successfully",
+  //       product
+  //     });
 
-    } catch (error) {
-      console.error('Update product error:', error);
-      res.status(500).json({ 
-        message: "Failed to update product", 
-        error: error.message 
-      });
-    }
-  },
+  //   } catch (error) {
+  //     console.error('Update product error:', error);
+  //     res.status(500).json({ 
+  //       message: "Failed to update product", 
+  //       error: error.message 
+  //     });
+  //   }
+  // },
 
   // Toggle product availability (Admin only)
   toggleProductAvailability: async (req, res) => {

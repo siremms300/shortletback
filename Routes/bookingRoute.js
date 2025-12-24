@@ -1,3 +1,4 @@
+// Routes/bookingRoutes
 const router = require("express").Router();
 const bookingController = require("../Controllers/bookingController");
 const authMiddleware = require("../middleware/authMiddleware");
