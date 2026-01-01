@@ -24,7 +24,7 @@ const app = express();
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
   // Disable CSP for testing (re-enable later)
-  contentSecurityPolicy: false
+  contentSecurityPolicy: false 
 }));
   
 // FIXED: Mobile-compatible CORS
@@ -82,12 +82,13 @@ app.use(helmet({
 //   preflightContinue: false,
 //   maxAge: 86400 // 24 hours
 // }));
- 
+  
 // ULTIMATE CORS FIX - Replace your current CORS setup with this
 app.use(cors({
   origin: [
     "https://holsapartments.com",
     'https://holsapartments.vercel.app',
+    "https://www.holsapartments.com",
     'http://localhost:3000',
     'http://localhost:3001'
   ],
@@ -117,6 +118,8 @@ app.use((req, res, next) => {
   const allowedOrigins = [
     "https://holsapartments.com",
     "https://holsapartments.vercel.app", 
+    "https://shortletfront.vercel.app",
+    "https://www.holsapartments.com",
     "http://localhost:3000",
     "http://localhost:3001"
   ];
