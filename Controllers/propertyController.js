@@ -677,6 +677,210 @@ const propertyController = {
 
 // ///////////////////////////////////////////////////////////////////////////////////////
 
+// @@@@@@@@@@@@@@@@@@@@@@@@ the two code blocks below works
+
+  // createProperty: async (req, res) => {
+  //   try {
+  //     const {
+  //       title,
+  //       description,
+  //       type,
+  //       price,
+  //       location,
+  //       bedrooms,
+  //       bathrooms,
+  //       maxGuests,
+  //       squareFeet,
+  //       amenities
+  //     } = req.body;
+
+  //     // Parse amenities if it's a string and validate they exist
+  //     let amenitiesArray = [];
+  //     if (amenities) {
+  //       amenitiesArray = typeof amenities === 'string' ? JSON.parse(amenities) : amenities;
+        
+  //       // Validate that all amenity IDs exist and are active
+  //       if (amenitiesArray.length > 0) {
+  //         const existingAmenities = await Amenity.find({
+  //           _id: { $in: amenitiesArray },
+  //           isActive: true
+  //         });
+          
+  //         if (existingAmenities.length !== amenitiesArray.length) {
+  //           return res.status(400).json({ 
+  //             message: "Some amenities are invalid or inactive" 
+  //           });
+  //         }
+  //       }
+  //     }
+
+  //     // Handle image uploads for Cloudinary
+  //     let images = [];
+  //     if (req.files && req.files.length > 0) {
+  //       images = req.files.map((file, index) => {
+  //         // Get URL from Cloudinary or fallback to path
+  //         const imageUrl = file.cloudinary?.url || file.path;
+          
+  //         console.log('Processing image:', {
+  //           originalName: file.originalname,
+  //           cloudinaryUrl: file.cloudinary?.url,
+  //           localPath: file.path,
+  //           finalUrl: imageUrl
+  //         });
+          
+  //         return {
+  //           url: imageUrl,
+  //           isMain: index === 0,
+  //           order: index
+  //         };
+  //       });
+  //     }
+
+  //     if (images.length === 0) {
+  //       return res.status(400).json({ message: "At least one image is required" });
+  //     }
+
+  //     const property = new Property({
+  //       title,
+  //       description,
+  //       type,
+  //       price: parseFloat(price),
+  //       location,
+  //       specifications: {
+  //         bedrooms: parseInt(bedrooms) || 0,
+  //         bathrooms: parseInt(bathrooms) || 0,
+  //         maxGuests: parseInt(maxGuests) || 1,
+  //         squareFeet: parseInt(squareFeet) || 0
+  //       },
+  //       amenities: amenitiesArray,
+  //       images,
+  //       owner: req.user.id,
+  //       status: 'active'
+  //     });
+
+  //     await property.save();
+
+  //     // Add property to user's propertyList
+  //     await User.findByIdAndUpdate(req.user.id, {
+  //       $push: { propertyList: property._id }
+  //     });
+
+  //     const populatedProperty = await Property.findById(property._id)
+  //       .populate('owner', 'firstName lastName email profileImagePath')
+  //       .populate('amenities', 'name icon category');
+
+  //     res.status(201).json({
+  //       message: "Property created successfully",
+  //       property: populatedProperty
+  //     });
+
+  //   } catch (err) {
+  //     console.error('Create property error:', err);
+  //     res.status(500).json({ 
+  //       message: "Failed to create property", 
+  //       error: err.message 
+  //     });
+  //   }
+  // },
+
+
+  // updateProperty: async (req, res) => {
+  //   try {
+  //     const { id } = req.params;
+  //     const updateData = { ...req.body };
+
+  //     // Find property and check ownership
+  //     const property = await Property.findById(id);
+  //     if (!property) {
+  //       return res.status(404).json({ message: "Property not found" });
+  //     }
+
+  //     // Check if user owns the property or is admin
+  //     if (property.owner.toString() !== req.user.id && req.user.role !== 'admin') {
+  //       return res.status(403).json({ message: "Access denied" });
+  //     }
+
+  //     // Handle specifications update
+  //     if (updateData.bedrooms || updateData.bathrooms || updateData.maxGuests || updateData.squareFeet) {
+  //       updateData.specifications = {
+  //         bedrooms: parseInt(updateData.bedrooms) || property.specifications.bedrooms,
+  //         bathrooms: parseInt(updateData.bathrooms) || property.specifications.bathrooms,
+  //         maxGuests: parseInt(updateData.maxGuests) || property.specifications.maxGuests,
+  //         squareFeet: parseInt(updateData.squareFeet) || property.specifications.squareFeet
+  //       };
+  //       delete updateData.bedrooms;
+  //       delete updateData.bathrooms;
+  //       delete updateData.maxGuests;
+  //       delete updateData.squareFeet;
+  //     }
+
+  //     // Handle amenities update
+  //     if (updateData.amenities) {
+  //       const amenitiesArray = typeof updateData.amenities === 'string' 
+  //         ? JSON.parse(updateData.amenities) 
+  //         : updateData.amenities;
+        
+  //       // Validate amenities exist and are active
+  //       if (amenitiesArray.length > 0) {
+  //         const existingAmenities = await Amenity.find({
+  //           _id: { $in: amenitiesArray },
+  //           isActive: true
+  //         });
+          
+  //         if (existingAmenities.length !== amenitiesArray.length) {
+  //           return res.status(400).json({ 
+  //             message: "Some amenities are invalid or inactive" 
+  //           });
+  //         }
+  //       }
+        
+  //       updateData.amenities = amenitiesArray;
+  //     }
+
+  //     // Handle image uploads for Cloudinary
+  //     if (req.files && req.files.length > 0) {
+  //       const newImages = req.files.map((file, index) => {
+  //         const imageUrl = file.cloudinary?.url || file.path;
+          
+  //         console.log('Adding new image:', {
+  //           originalName: file.originalname,
+  //           cloudinaryUrl: file.cloudinary?.url,
+  //           finalUrl: imageUrl
+  //         });
+          
+  //         return {
+  //           url: imageUrl,
+  //           isMain: property.images.length === 0 && index === 0,
+  //           order: property.images.length + index
+  //         };
+  //       });
+        
+  //       updateData.$push = { images: { $each: newImages } };
+  //     }
+
+  //     const updatedProperty = await Property.findByIdAndUpdate(
+  //       id,
+  //       updateData,
+  //       { new: true, runValidators: true }
+  //     )
+  //       .populate('owner', 'firstName lastName profileImagePath')
+  //       .populate('amenities', 'name icon category');
+
+  //     res.status(200).json({
+  //       message: "Property updated successfully",
+  //       property: updatedProperty
+  //     });
+
+  //   } catch (err) {
+  //     console.error('Update property error:', err);
+  //     res.status(500).json({ 
+  //       message: "Failed to update property", 
+  //       error: err.message 
+  //     });
+  //   }
+  // },
+
+
 
   createProperty: async (req, res) => {
     try {
@@ -690,7 +894,10 @@ const propertyController = {
         bathrooms,
         maxGuests,
         squareFeet,
-        amenities
+        amenities,
+        utilityPercentage,
+        serviceChargePercentage,
+        vatPercentage
       } = req.body;
 
       // Parse amenities if it's a string and validate they exist
@@ -739,11 +946,16 @@ const propertyController = {
         return res.status(400).json({ message: "At least one image is required" });
       }
 
+      // Create property with new price fields
       const property = new Property({
         title,
         description,
         type,
         price: parseFloat(price),
+        // New price calculation fields with defaults
+        utilityPercentage: utilityPercentage ? parseFloat(utilityPercentage) : 20,
+        serviceChargePercentage: serviceChargePercentage ? parseFloat(serviceChargePercentage) : 10,
+        vatPercentage: vatPercentage ? parseFloat(vatPercentage) : 7.5,
         location,
         specifications: {
           bedrooms: parseInt(bedrooms) || 0,
@@ -764,13 +976,25 @@ const propertyController = {
         $push: { propertyList: property._id }
       });
 
+      // Populate the property with owner and amenities data
       const populatedProperty = await Property.findById(property._id)
         .populate('owner', 'firstName lastName email profileImagePath')
         .populate('amenities', 'name icon category');
 
+      // Log price breakdown for verification
+      console.log('Property created with price breakdown:', {
+        actualPrice: property.price,
+        utilityPercentage: property.utilityPercentage,
+        serviceChargePercentage: property.serviceChargePercentage,
+        vatPercentage: property.vatPercentage,
+        calculatedPrices: property.calculatedPrices,
+        priceBreakdown: property.priceBreakdown
+      });
+
       res.status(201).json({
         message: "Property created successfully",
-        property: populatedProperty
+        property: populatedProperty,
+        priceBreakdown: property.priceBreakdown
       });
 
     } catch (err) {
@@ -782,7 +1006,7 @@ const propertyController = {
     }
   },
 
-
+  // Update property
   updateProperty: async (req, res) => {
     try {
       const { id } = req.params;
@@ -836,6 +1060,20 @@ const propertyController = {
         updateData.amenities = amenitiesArray;
       }
 
+      // Handle price-related field updates
+      if (updateData.price !== undefined) {
+        updateData.price = parseFloat(updateData.price);
+      }
+      if (updateData.utilityPercentage !== undefined) {
+        updateData.utilityPercentage = parseFloat(updateData.utilityPercentage);
+      }
+      if (updateData.serviceChargePercentage !== undefined) {
+        updateData.serviceChargePercentage = parseFloat(updateData.serviceChargePercentage);
+      }
+      if (updateData.vatPercentage !== undefined) {
+        updateData.vatPercentage = parseFloat(updateData.vatPercentage);
+      }
+
       // Handle image uploads for Cloudinary
       if (req.files && req.files.length > 0) {
         const newImages = req.files.map((file, index) => {
@@ -865,9 +1103,20 @@ const propertyController = {
         .populate('owner', 'firstName lastName profileImagePath')
         .populate('amenities', 'name icon category');
 
+      // Log updated price breakdown
+      console.log('Property updated with price breakdown:', {
+        actualPrice: updatedProperty.price,
+        utilityPercentage: updatedProperty.utilityPercentage,
+        serviceChargePercentage: updatedProperty.serviceChargePercentage,
+        vatPercentage: updatedProperty.vatPercentage,
+        calculatedPrices: updatedProperty.calculatedPrices,
+        priceBreakdown: updatedProperty.priceBreakdown
+      });
+
       res.status(200).json({
         message: "Property updated successfully",
-        property: updatedProperty
+        property: updatedProperty,
+        priceBreakdown: updatedProperty.priceBreakdown
       });
 
     } catch (err) {
@@ -878,8 +1127,7 @@ const propertyController = {
       });
     }
   },
-
-
+ 
 
   // Delete property
   deleteProperty: async (req, res) => {

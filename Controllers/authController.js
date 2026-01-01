@@ -7,7 +7,7 @@ const emailService = require("../Services/emailService");
 
 const authController = {
   /* USER REGISTER */
-  
+   
 
   // register: async (req, res) => {
   //   try {

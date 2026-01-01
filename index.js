@@ -26,7 +26,7 @@ app.use(helmet({
   // Disable CSP for testing (re-enable later)
   contentSecurityPolicy: false
 }));
-
+  
 // FIXED: Mobile-compatible CORS
 // app.use(cors({
 //   origin: function (origin, callback) {
@@ -82,7 +82,7 @@ app.use(helmet({
 //   preflightContinue: false,
 //   maxAge: 86400 // 24 hours
 // }));
-
+ 
 // ULTIMATE CORS FIX - Replace your current CORS setup with this
 app.use(cors({
   origin: [

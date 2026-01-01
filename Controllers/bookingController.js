@@ -113,6 +113,156 @@ const bookingController = {
   // },
 
   // Create booking
+  // createBooking: async (req, res) => {
+  //   try {
+  //     const {
+  //       propertyId,
+  //       checkIn,
+  //       checkOut,
+  //       guests,
+  //       specialRequests,
+  //       paymentMethod = 'paystack' // Add payment method
+  //     } = req.body;
+
+  //     // Validate required fields
+  //     if (!propertyId || !checkIn || !checkOut || !guests) {
+  //       return res.status(400).json({ 
+  //         success: false,
+  //         message: "Property ID, check-in, check-out, and guests are required" 
+  //       });
+  //     }
+
+  //     // Check if property exists and is active
+  //     const property = await Property.findById(propertyId);
+  //     if (!property || property.status !== 'active') {
+  //       return res.status(404).json({ 
+  //         success: false,
+  //         message: "Property not available" 
+  //       });
+  //     }
+
+  //     // Check availability - only consider confirmed bookings
+  //     const isAvailable = await Booking.checkAvailability(propertyId, checkIn, checkOut);
+  //     if (!isAvailable) {
+  //       return res.status(400).json({ 
+  //         success: false,
+  //         message: "Property not available for selected dates" 
+  //       });
+  //     }
+
+  //     // Validate guests count
+  //     if (guests > property.specifications.maxGuests) {
+  //       return res.status(400).json({ 
+  //         message: `Maximum ${property.specifications.maxGuests} guests allowed` 
+  //       });
+  //     }
+
+  //     // Calculate total amount
+  //     const nights = Math.ceil((new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24));
+  //     const baseAmount = property.price * nights;
+  //     const serviceFee = baseAmount * 0.1; // 10% service fee
+  //     const totalAmount = baseAmount + serviceFee;
+
+  //     // Create booking with payment method
+  //     const booking = new Booking({
+  //       property: propertyId,
+  //       user: req.user.id,
+  //       checkIn: new Date(checkIn),
+  //       checkOut: new Date(checkOut),
+  //       guests,
+  //       totalAmount,
+  //       serviceFee,
+  //       specialRequests: specialRequests || '',
+  //       paymentStatus: 'pending',
+  //       bookingStatus: 'pending',
+  //       paymentMethod, // Add payment method
+  //       paymentReference: `HOLS-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+  //     });
+
+  //     // For bank transfer, initialize bank transfer details
+  //     if (paymentMethod === 'bank_transfer') {
+  //       booking.bankTransferDetails = {
+  //         accountName: 'Hols Apartments Ltd',
+  //         accountNumber: '0094639347',
+  //         bankName: 'Sterling Bank',
+  //         transferReference: `TRF-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+  //         status: 'pending'
+  //       };
+  //       // For bank transfer, booking status should remain pending until payment is verified
+  //       booking.bookingStatus = 'pending';
+  //     }
+
+  //     // For onsite payment, initialize onsite details
+  //     if (paymentMethod === 'onsite') {
+  //       booking.onsitePaymentDetails = {
+  //         expectedAmount: totalAmount,
+  //         status: 'pending'
+  //       };
+  //       // For onsite payment, booking status should remain pending until payment is collected
+  //       booking.bookingStatus = 'pending';
+  //     }
+
+  //     await booking.save();
+
+  //     // Populate booking data for response
+  //     await booking.populate('property', 'title location images price specifications');
+  //     await booking.populate('user', 'firstName lastName email');
+
+  //     // Send email notification to admin about new booking
+  //     try {
+  //       await emailService.sendNewBookingNotification(booking);
+  //     } catch (emailError) {
+  //       console.error('Failed to send booking notification:', emailError);
+  //     }
+
+  //     // Send different messages based on payment method
+  //     let successMessage = "Booking created successfully. Please complete payment to confirm your booking.";
+      
+  //     if (paymentMethod === 'bank_transfer') {
+  //       successMessage = "Booking created successfully. Please make a bank transfer to the provided account and upload proof of payment.";
+  //     } else if (paymentMethod === 'onsite') {
+  //       successMessage = "Booking created successfully. Please proceed to the property for check-in and payment.";
+  //     }
+
+  //     res.status(201).json({
+  //       success: true,
+  //       message: successMessage,
+  //       booking,
+  //       paymentMethod,
+  //       // Include bank details if payment method is bank transfer
+  //       ...(paymentMethod === 'bank_transfer' && {
+  //         bankDetails: booking.bankTransferDetails
+  //       })
+  //     });
+
+  //   } catch (error) {
+  //     console.error('Create booking error:', error);
+      
+  //     // Handle specific errors
+  //     if (error.name === 'ValidationError') {
+  //       return res.status(400).json({ 
+  //         success: false,
+  //         message: "Validation error",
+  //         error: error.message 
+  //       });
+  //     }
+      
+  //     if (error.name === 'CastError') {
+  //       return res.status(400).json({ 
+  //         success: false,
+  //         message: "Invalid property ID format" 
+  //       });
+  //     }
+      
+  //     res.status(500).json({ 
+  //       success: false,
+  //       message: "Failed to create booking", 
+  //       error: error.message 
+  //     });
+  //   }
+  // },
+
+  // Create booking with updated price calculation
   createBooking: async (req, res) => {
     try {
       const {
@@ -121,7 +271,7 @@ const bookingController = {
         checkOut,
         guests,
         specialRequests,
-        paymentMethod = 'paystack' // Add payment method
+        paymentMethod = 'paystack'
       } = req.body;
 
       // Validate required fields
@@ -153,29 +303,50 @@ const bookingController = {
       // Validate guests count
       if (guests > property.specifications.maxGuests) {
         return res.status(400).json({ 
+          success: false,
           message: `Maximum ${property.specifications.maxGuests} guests allowed` 
         });
       }
 
-      // Calculate total amount
+      // Calculate total nights
       const nights = Math.ceil((new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24));
-      const baseAmount = property.price * nights;
-      const serviceFee = baseAmount * 0.1; // 10% service fee
-      const totalAmount = baseAmount + serviceFee;
+      
+      // Get property price breakdown
+      const propertyPriceBreakdown = property.priceBreakdown || {
+        actualPrice: property.price,
+        utility: (property.price * (property.utilityPercentage || 20)) / 100,
+        serviceCharge: (property.price * (property.serviceChargePercentage || 10)) / 100,
+        accommodation: property.price - ((property.price * (property.utilityPercentage || 20)) / 100) - ((property.price * (property.serviceChargePercentage || 10)) / 100),
+        vat: ((property.price - ((property.price * (property.utilityPercentage || 20)) / 100) - ((property.price * (property.serviceChargePercentage || 10)) / 100)) * (property.vatPercentage || 7.5)) / 100,
+        total: property.price + ((property.price - ((property.price * (property.utilityPercentage || 20)) / 100) - ((property.price * (property.serviceChargePercentage || 10)) / 100)) * (property.vatPercentage || 7.5)) / 100
+      };
 
-      // Create booking with payment method
+      // Calculate booking price breakdown
+      const bookingPriceBreakdown = {
+        actualPrice: property.price * nights,
+        utilityPercentage: property.utilityPercentage || 20,
+        utility: propertyPriceBreakdown.utility * nights,
+        serviceChargePercentage: property.serviceChargePercentage || 10,
+        serviceCharge: propertyPriceBreakdown.serviceCharge * nights,
+        accommodation: propertyPriceBreakdown.accommodation * nights,
+        vatPercentage: property.vatPercentage || 7.5,
+        vat: propertyPriceBreakdown.vat * nights,
+        subtotal: property.price * nights,
+        totalAmount: propertyPriceBreakdown.total * nights
+      };
+
+      // Create booking with price breakdown
       const booking = new Booking({
         property: propertyId,
         user: req.user.id,
         checkIn: new Date(checkIn),
         checkOut: new Date(checkOut),
         guests,
-        totalAmount,
-        serviceFee,
+        priceBreakdown: bookingPriceBreakdown,
         specialRequests: specialRequests || '',
         paymentStatus: 'pending',
         bookingStatus: 'pending',
-        paymentMethod, // Add payment method
+        paymentMethod,
         paymentReference: `HOLS-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
       });
 
@@ -188,27 +359,25 @@ const bookingController = {
           transferReference: `TRF-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
           status: 'pending'
         };
-        // For bank transfer, booking status should remain pending until payment is verified
         booking.bookingStatus = 'pending';
       }
 
       // For onsite payment, initialize onsite details
       if (paymentMethod === 'onsite') {
         booking.onsitePaymentDetails = {
-          expectedAmount: totalAmount,
+          expectedAmount: bookingPriceBreakdown.totalAmount,
           status: 'pending'
         };
-        // For onsite payment, booking status should remain pending until payment is collected
         booking.bookingStatus = 'pending';
       }
 
       await booking.save();
 
       // Populate booking data for response
-      await booking.populate('property', 'title location images price specifications');
+      await booking.populate('property', 'title location images price specifications utilityPercentage serviceChargePercentage vatPercentage calculatedPrices');
       await booking.populate('user', 'firstName lastName email');
 
-      // Send email notification to admin about new booking
+      // Send email notification to admin
       try {
         await emailService.sendNewBookingNotification(booking);
       } catch (emailError) {
@@ -229,6 +398,7 @@ const bookingController = {
         message: successMessage,
         booking,
         paymentMethod,
+        priceBreakdown: bookingPriceBreakdown,
         // Include bank details if payment method is bank transfer
         ...(paymentMethod === 'bank_transfer' && {
           bankDetails: booking.bankTransferDetails
@@ -774,224 +944,6 @@ const bookingController = {
       });
     }
   },
-
-  // Upload proof of payment for bank transfer
-  // uploadProofOfPayment: async (req, res) => {
-  //   try {
-  //     const { id } = req.params;
-  //     const proofFile = req.file;
-
-  //     if (!proofFile) {
-  //       return res.status(400).json({ 
-  //         success: false,
-  //         message: "Proof of payment file is required" 
-  //       });
-  //     }
-
-  //     const booking = await Booking.findById(id)
-  //       .populate('property', 'title')
-  //       .populate('user', 'firstName lastName email');
-
-  //     if (!booking) {
-  //       return res.status(404).json({ 
-  //         success: false,
-  //         message: "Booking not found" 
-  //       });
-  //     }
-
-  //     // Check if user owns booking
-  //     if (booking.user._id.toString() !== req.user.id && req.user.role !== 'admin') {
-  //       return res.status(403).json({ 
-  //         success: false,
-  //         message: "Access denied" 
-  //       });
-  //     }
-
-  //     // Check if booking is for bank transfer
-  //     if (booking.paymentMethod !== 'bank_transfer') {
-  //       return res.status(400).json({ 
-  //         success: false,
-  //         message: "This booking is not for bank transfer" 
-  //       });
-  //     }
-
-  //     // Check if bank transfer details exist
-  //     if (!booking.bankTransferDetails) {
-  //       booking.bankTransferDetails = {
-  //         accountName: 'Hols Apartments Ltd',
-  //         accountNumber: '0900408855',
-  //         bankName: 'GT Bank',
-  //         transferReference: `TRF-${Date.now()}`,
-  //         status: 'pending'
-  //       };
-  //     }
-
-  //     // Update bank transfer details with proof
-  //     booking.bankTransferDetails.proofOfPayment = `/uploads/payments/${proofFile.filename}`;
-  //     booking.bankTransferDetails.status = 'pending';
-  //     booking.paymentStatus = 'pending'; // Ensure it's pending for verification
-  //     booking.bookingStatus = 'pending'; // Ensure booking is pending until verified
-      
-  //     await booking.save();
-
-  //     // Notify admin about uploaded proof
-  //     try {
-  //       await emailService.sendPaymentProofNotification(booking);
-  //     } catch (emailError) {
-  //       console.error('Failed to send proof notification:', emailError);
-  //     }
-
-  //     // Send confirmation to user
-  //     try {
-  //       await emailService.sendProofUploadConfirmation(booking);
-  //     } catch (emailError) {
-  //       console.error('Failed to send upload confirmation:', emailError);
-  //     }
-
-  //     res.status(200).json({
-  //       success: true,
-  //       message: "Proof of payment uploaded successfully. Admin will verify your payment.",
-  //       booking: {
-  //         _id: booking._id,
-  //         paymentStatus: booking.paymentStatus,
-  //         bookingStatus: booking.bookingStatus,
-  //         bankTransferDetails: booking.bankTransferDetails
-  //       }
-  //     });
-
-  //   } catch (error) {
-  //     console.error('Upload proof error:', error);
-      
-  //     if (error.name === 'ValidationError') {
-  //       return res.status(400).json({ 
-  //         success: false,
-  //         message: "Validation error",
-  //         error: error.message 
-  //       });
-  //     }
-      
-  //     res.status(500).json({ 
-  //       success: false,
-  //       message: "Failed to upload proof of payment", 
-  //       error: error.message 
-  //     });
-  //   }
-  // },
-
-  // In bookingController.js - update the uploadProofOfPayment function
-  // uploadProofOfPayment: async (req, res) => {
-  //   try {
-  //     const { id } = req.params;
-  //     const proofFile = req.file;
-
-  //     if (!proofFile) {
-  //       return res.status(400).json({ 
-  //         success: false,
-  //         message: "Proof of payment file is required" 
-  //       });
-  //     }
-
-  //     const booking = await Booking.findById(id)
-  //       .populate('property', 'title')
-  //       .populate('user', 'firstName lastName email');
-
-  //     if (!booking) {
-  //       return res.status(404).json({ 
-  //         success: false,
-  //         message: "Booking not found" 
-  //       });
-  //     }
-
-  //     // Check if user owns booking
-  //     if (booking.user._id.toString() !== req.user.id && req.user.role !== 'admin') {
-  //       return res.status(403).json({ 
-  //         success: false,
-  //         message: "Access denied" 
-  //       });
-  //     }
-
-  //     // Check if booking is for bank transfer
-  //     if (booking.paymentMethod !== 'bank_transfer') {
-  //       return res.status(400).json({ 
-  //         success: false,
-  //         message: "This booking is not for bank transfer" 
-  //       });
-  //     }
-
-  //     // Handle file path for Vercel vs local
-  //     let proofPath;
-  //     if (process.env.VERCEL && proofFile.isVercel) {
-  //       // On Vercel: File is in memory
-  //       console.log('Vercel proof upload - storing in memory');
-  //       proofPath = `/uploads/payments/${proofFile.filename}`;
-  //       // In production, you would upload to cloud storage here
-  //     } else {
-  //       // Local: File is saved to disk
-  //       proofPath = `/uploads/payments/${proofFile.filename}`;
-  //     }
-
-  //     // Initialize or update bank transfer details
-  //     if (!booking.bankTransferDetails) {
-  //       booking.bankTransferDetails = {
-  //         accountName: 'Hols Apartments Ltd',
-  //         accountNumber: '0900408855',
-  //         bankName: 'GT Bank',
-  //         transferReference: `TRF-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
-  //         status: 'pending'
-  //       };
-  //     }
-
-  //     // Update with proof path
-  //     booking.bankTransferDetails.proofOfPayment = proofPath;
-  //     booking.bankTransferDetails.status = 'pending';
-  //     booking.paymentStatus = 'pending';
-  //     booking.bookingStatus = 'pending';
-      
-  //     await booking.save();
-
-  //     // Notify admin about uploaded proof
-  //     try {
-  //       await emailService.sendPaymentProofNotification(booking);
-  //     } catch (emailError) {
-  //       console.error('Failed to send proof notification:', emailError);
-  //     }
-
-  //     // Send confirmation to user
-  //     try {
-  //       await emailService.sendProofUploadConfirmation(booking);
-  //     } catch (emailError) {
-  //       console.error('Failed to send upload confirmation:', emailError);
-  //     }
-
-  //     res.status(200).json({
-  //       success: true,
-  //       message: "Proof of payment uploaded successfully. Admin will verify your payment.",
-  //       booking: {
-  //         _id: booking._id,
-  //         paymentStatus: booking.paymentStatus,
-  //         bookingStatus: booking.bookingStatus,
-  //         bankTransferDetails: booking.bankTransferDetails
-  //       }
-  //     });
-
-  //   } catch (error) {
-  //     console.error('Upload proof error:', error);
-      
-  //     if (error.name === 'ValidationError') {
-  //       return res.status(400).json({ 
-  //         success: false,
-  //         message: "Validation error",
-  //         error: error.message 
-  //       });
-  //     }
-      
-  //     res.status(500).json({ 
-  //       success: false,
-  //       message: "Failed to upload proof of payment", 
-  //       error: error.message 
-  //     });
-  //   }
-  // },
 
   
   uploadProofOfPayment: async (req, res) => {
