@@ -120,22 +120,68 @@ const propertySchema = new mongoose.Schema(
 );
 
 // Add virtual getter for calculated prices
+// propertySchema.virtual('priceBreakdown').get(function() {
+//   const actualPrice = this.price;
+//   const utility = (actualPrice * this.utilityPercentage) / 100;
+//   const serviceCharge = (actualPrice * this.serviceChargePercentage) / 100;
+//   const accommodation = actualPrice - utility - serviceCharge;
+//   const vat = (accommodation * this.vatPercentage) / 100;
+//   const total = actualPrice + vat;
+  
+//   return {
+//     actualPrice,
+//     utilityPercentage: this.utilityPercentage,
+//     utility,
+//     serviceChargePercentage: this.serviceChargePercentage,
+//     serviceCharge,
+//     accommodation,
+//     vatPercentage: this.vatPercentage,
+//     vat,
+//     total
+//   };
+// });
+
+// propertySchema.virtual('priceBreakdown').get(function() {
+//   const actualPrice = this.price;
+//   const utility = (actualPrice * this.utilityPercentage) / 100;
+//   const serviceCharge = (actualPrice * this.serviceChargePercentage) / 100;
+//   const accommodation = actualPrice - utility - serviceCharge;
+//   const vat = (accommodation * this.vatPercentage) / 100;
+//   const total = actualPrice + vat;  // CORRECT: Actual + VAT on Accommodation
+  
+//   return {
+//     actualPrice,
+//     utilityPercentage: this.utilityPercentage,
+//     utility,
+//     serviceChargePercentage: this.serviceChargePercentage,
+//     serviceCharge,
+//     accommodation,
+//     vatPercentage: this.vatPercentage,
+//     vat,
+//     total  // This is the total per night
+//   };
+// });
+
 propertySchema.virtual('priceBreakdown').get(function() {
   const actualPrice = this.price;
-  const utility = (actualPrice * this.utilityPercentage) / 100;
-  const serviceCharge = (actualPrice * this.serviceChargePercentage) / 100;
+  const utilityPercentage = this.utilityPercentage || 20;
+  const serviceChargePercentage = this.serviceChargePercentage || 10;
+  const vatPercentage = this.vatPercentage || 7.5;
+  
+  const utility = (actualPrice * utilityPercentage) / 100;
+  const serviceCharge = (actualPrice * serviceChargePercentage) / 100;
   const accommodation = actualPrice - utility - serviceCharge;
-  const vat = (accommodation * this.vatPercentage) / 100;
-  const total = actualPrice + vat;
+  const vat = (accommodation * vatPercentage) / 100;
+  const total = actualPrice + vat; // Actual price + VAT on accommodation
   
   return {
     actualPrice,
-    utilityPercentage: this.utilityPercentage,
+    utilityPercentage,
     utility,
-    serviceChargePercentage: this.serviceChargePercentage,
+    serviceChargePercentage,
     serviceCharge,
     accommodation,
-    vatPercentage: this.vatPercentage,
+    vatPercentage,
     vat,
     total
   };
