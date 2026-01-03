@@ -129,6 +129,70 @@ class PaystackService {
       throw new Error('Failed to initiate refund');
     }
   }
+
+  // In Services/paystackService.js - add detailed logging
+
+  async initializeTransaction(data) {
+    try {
+      // Log exactly what we're sending
+      console.log('📤 [Paystack Service] Sending to Paystack:', {
+        email: data.email,
+        amount: data.amount,
+        amountType: typeof data.amount,
+        isInteger: Number.isInteger(data.amount),
+        reference: data.reference,
+        metadata: data.metadata
+      });
+      
+      // Validate amount
+      if (!Number.isInteger(data.amount)) {
+        console.error('❌ [Paystack Service] Amount is not integer:', data.amount);
+        throw new Error(`Amount must be integer in kobo. Received: ${data.amount} (type: ${typeof data.amount})`);
+      }
+      
+      if (data.amount < 100) {
+        console.error('❌ [Paystack Service] Amount too small:', data.amount);
+        throw new Error(`Amount must be at least 100 kobo (₦1). Received: ${data.amount} kobo`);
+      }
+      
+      const payload = {
+        email: data.email,
+        amount: data.amount,  // This is already in kobo
+        reference: data.reference,
+        metadata: data.metadata,
+        callback_url: data.callback_url || `${process.env.CLIENT_URL}/booking/success`
+      };
+      
+      console.log('📦 [Paystack Service] Paystack payload:', payload);
+      
+      const response = await axios.post(
+        `${this.baseURL}/transaction/initialize`,
+        payload,
+        {
+          headers: {
+            Authorization: `Bearer ${this.secretKey}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      console.log('✅ [Paystack Service] Paystack response:', {
+        status: response.status,
+        hasData: !!response.data.data,
+        authorizationUrl: !!response.data.data?.authorization_url
+      });
+      
+      return response.data.data;
+      
+    } catch (error) {
+      console.error('💥 [Paystack Service] Error:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      throw error;
+    }
+  }
 }
 
 module.exports = new PaystackService();

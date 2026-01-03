@@ -45,6 +45,41 @@ router.post("/verify-payment", authMiddleware.verifyToken, bookingController.ver
 router.get("/admin/all", authMiddleware.verifyToken, authMiddleware.requireAdmin, bookingController.getAllBookings);
 router.patch("/admin/:id/status", authMiddleware.verifyToken, authMiddleware.requireAdmin, bookingController.updateBookingStatus);
 
+
+// Add this to your booking routes for testing
+router.post('/test-amount-conversion', (req, res) => {
+  try {
+    const { nairaAmount } = req.body;
+    
+    if (!nairaAmount) {
+      return res.status(400).json({ error: 'nairaAmount is required' });
+    }
+    
+    const naira = parseFloat(nairaAmount);
+    const kobo = Math.round(naira * 100);
+    
+    res.json({
+      input: {
+        nairaAmount: naira,
+        stringValue: nairaAmount.toString()
+      },
+      conversion: {
+        formula: `${naira} × 100 = ${kobo}`,
+        kobo: kobo,
+        isInteger: Number.isInteger(kobo)
+      },
+      examples: {
+        '₦1': '1 × 100 = 100 kobo',
+        '₦1000': '1000 × 100 = 100000 kobo',
+        '₦157,875': '157875 × 100 = 15787500 kobo'
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
 module.exports = router;
 
 

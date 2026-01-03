@@ -2035,388 +2035,695 @@ const bookingController = {
   // },
 
 
-  initializePayment: async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { email } = req.body;
+  // initializePayment: async (req, res) => {
+  //   try {
+  //     const { id } = req.params;
+  //     const { email } = req.body;
 
-      console.log('🎯 [Backend] Initialize payment called for booking:', id);
-      console.log('📧 [Backend] Email:', email);
+  //     console.log('🎯 [Backend] Initialize payment called for booking:', id);
+  //     console.log('📧 [Backend] Email:', email);
 
-      // Validate booking ID
-      if (!id || id === 'undefined' || !mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(400).json({ 
-          success: false,
-          message: "Invalid booking ID" 
-        });
-      }
+  //     // Validate booking ID
+  //     if (!id || id === 'undefined' || !mongoose.Types.ObjectId.isValid(id)) {
+  //       return res.status(400).json({ 
+  //         success: false,
+  //         message: "Invalid booking ID" 
+  //       });
+  //     }
 
-      const booking = await Booking.findById(id)
-        .populate('property', 'title price utilityPercentage serviceChargePercentage vatPercentage')
-        .populate('user', 'firstName lastName email');
+  //     const booking = await Booking.findById(id)
+  //       .populate('property', 'title price utilityPercentage serviceChargePercentage vatPercentage')
+  //       .populate('user', 'firstName lastName email');
 
-      if (!booking) {
-        console.log('❌ [Backend] Booking not found:', id);
-        return res.status(404).json({ 
-          success: false,
-          message: "Booking not found" 
-        });
-      }
+  //     if (!booking) {
+  //       console.log('❌ [Backend] Booking not found:', id);
+  //       return res.status(404).json({ 
+  //         success: false,
+  //         message: "Booking not found" 
+  //       });
+  //     }
 
-      // Debug: Log full booking data
-      console.log('📊 [Backend] Booking data:', {
-        bookingId: booking._id,
-        priceBreakdown: booking.priceBreakdown,
-        totalAmount: booking.totalAmount,
-        propertyPrice: booking.property?.price,
-        checkIn: booking.checkIn,
-        checkOut: booking.checkOut,
-        nights: Math.ceil((new Date(booking.checkOut) - new Date(booking.checkIn)) / (1000 * 60 * 60 * 24)),
-        paymentMethod: booking.paymentMethod,
-        paymentReference: booking.paymentReference,
-        paymentStatus: booking.paymentStatus,
-        bookingStatus: booking.bookingStatus
-      });
+  //     // Debug: Log full booking data
+  //     console.log('📊 [Backend] Booking data:', {
+  //       bookingId: booking._id,
+  //       priceBreakdown: booking.priceBreakdown,
+  //       totalAmount: booking.totalAmount,
+  //       propertyPrice: booking.property?.price,
+  //       checkIn: booking.checkIn,
+  //       checkOut: booking.checkOut,
+  //       nights: Math.ceil((new Date(booking.checkOut) - new Date(booking.checkIn)) / (1000 * 60 * 60 * 24)),
+  //       paymentMethod: booking.paymentMethod,
+  //       paymentReference: booking.paymentReference,
+  //       paymentStatus: booking.paymentStatus,
+  //       bookingStatus: booking.bookingStatus
+  //     });
 
-      // Check if booking belongs to user
-      if (booking.user._id.toString() !== req.user.id && req.user.role !== 'admin') {
-        console.log('❌ [Backend] Access denied for user:', req.user.id);
-        return res.status(403).json({ 
-          success: false,
-          message: "Access denied" 
-        });
-      }
+  //     // Check if booking belongs to user
+  //     if (booking.user._id.toString() !== req.user.id && req.user.role !== 'admin') {
+  //       console.log('❌ [Backend] Access denied for user:', req.user.id);
+  //       return res.status(403).json({ 
+  //         success: false,
+  //         message: "Access denied" 
+  //       });
+  //     }
 
-      // Check if booking is already paid
-      if (booking.paymentStatus === 'paid') {
-        console.log('ℹ️ [Backend] Booking already paid:', id);
-        return res.status(400).json({ 
-          success: false,
-          message: "Booking already paid" 
-        });
-      }
+  //     // Check if booking is already paid
+  //     if (booking.paymentStatus === 'paid') {
+  //       console.log('ℹ️ [Backend] Booking already paid:', id);
+  //       return res.status(400).json({ 
+  //         success: false,
+  //         message: "Booking already paid" 
+  //       });
+  //     }
 
-      // Check payment method
-      if (booking.paymentMethod !== 'paystack') {
-        console.log('ℹ️ [Backend] Wrong payment method:', booking.paymentMethod);
-        return res.status(400).json({ 
-          success: false,
-          message: `This booking uses ${booking.paymentMethod === 'bank_transfer' ? 'bank transfer' : 'onsite payment'}. Please use the appropriate payment process.` 
-        });
-      }
+  //     // Check payment method
+  //     if (booking.paymentMethod !== 'paystack') {
+  //       console.log('ℹ️ [Backend] Wrong payment method:', booking.paymentMethod);
+  //       return res.status(400).json({ 
+  //         success: false,
+  //         message: `This booking uses ${booking.paymentMethod === 'bank_transfer' ? 'bank transfer' : 'onsite payment'}. Please use the appropriate payment process.` 
+  //       });
+  //     }
 
-      // Check if booking is cancelled
-      if (booking.bookingStatus === 'cancelled') {
-        console.log('ℹ️ [Backend] Booking cancelled:', id);
-        return res.status(400).json({ 
-          success: false,
-          message: "This booking has been cancelled" 
-        });
-      }
+  //     // Check if booking is cancelled
+  //     if (booking.bookingStatus === 'cancelled') {
+  //       console.log('ℹ️ [Backend] Booking cancelled:', id);
+  //       return res.status(400).json({ 
+  //         success: false,
+  //         message: "This booking has been cancelled" 
+  //       });
+  //     }
 
-      // Generate new payment reference if payment was previously initialized but failed
-      if (booking.paystackReference && booking.paymentStatus === 'pending') {
-        booking.paymentReference = `HOLS-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        booking.paystackReference = undefined;
-        await booking.save();
-        console.log('🔄 [Backend] Generated new payment reference:', booking.paymentReference);
-      }
+  //     // Generate new payment reference if payment was previously initialized but failed
+  //     if (booking.paystackReference && booking.paymentStatus === 'pending') {
+  //       booking.paymentReference = `HOLS-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  //       booking.paystackReference = undefined;
+  //       await booking.save();
+  //       console.log('🔄 [Backend] Generated new payment reference:', booking.paymentReference);
+  //     }
 
-      // FIX: Calculate total amount correctly from priceBreakdown
-      let totalAmount = 0;
+  //     // FIX: Calculate total amount correctly from priceBreakdown
+  //     let totalAmount = 0;
       
-      // Method 1: Use priceBreakdown.totalAmount if it exists and is valid
-      if (booking.priceBreakdown && booking.priceBreakdown.totalAmount) {
-        totalAmount = booking.priceBreakdown.totalAmount;
-        console.log('💰 [Backend] Method 1 - Using priceBreakdown.totalAmount:', totalAmount);
-      } 
-      // Method 2: Use booking.totalAmount if it exists
-      else if (booking.totalAmount) {
-        totalAmount = booking.totalAmount;
-        console.log('💰 [Backend] Method 2 - Using booking.totalAmount:', totalAmount);
-      } 
-      // Method 3: Calculate from scratch using property data
-      else {
-        console.log('💰 [Backend] Method 3 - Calculating from scratch');
+  //     // Method 1: Use priceBreakdown.totalAmount if it exists and is valid
+  //     if (booking.priceBreakdown && booking.priceBreakdown.totalAmount) {
+  //       totalAmount = booking.priceBreakdown.totalAmount;
+  //       console.log('💰 [Backend] Method 1 - Using priceBreakdown.totalAmount:', totalAmount);
+  //     } 
+  //     // Method 2: Use booking.totalAmount if it exists
+  //     else if (booking.totalAmount) {
+  //       totalAmount = booking.totalAmount;
+  //       console.log('💰 [Backend] Method 2 - Using booking.totalAmount:', totalAmount);
+  //     } 
+  //     // Method 3: Calculate from scratch using property data
+  //     else {
+  //       console.log('💰 [Backend] Method 3 - Calculating from scratch');
         
-        // Calculate nights
-        const checkIn = new Date(booking.checkIn);
-        const checkOut = new Date(booking.checkOut);
-        const nights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
+  //       // Calculate nights
+  //       const checkIn = new Date(booking.checkIn);
+  //       const checkOut = new Date(booking.checkOut);
+  //       const nights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
         
-        // Get property price and percentages
-        const propertyPrice = booking.property?.price || 0;
-        const utilityPercentage = booking.property?.utilityPercentage || 20;
-        const serviceChargePercentage = booking.property?.serviceChargePercentage || 10;
-        const vatPercentage = booking.property?.vatPercentage || 7.5;
+  //       // Get property price and percentages
+  //       const propertyPrice = booking.property?.price || 0;
+  //       const utilityPercentage = booking.property?.utilityPercentage || 20;
+  //       const serviceChargePercentage = booking.property?.serviceChargePercentage || 10;
+  //       const vatPercentage = booking.property?.vatPercentage || 7.5;
         
-        console.log('📅 [Backend] Calculation parameters:', {
-          nights,
-          propertyPrice,
-          utilityPercentage,
-          serviceChargePercentage,
-          vatPercentage
-        });
+  //       console.log('📅 [Backend] Calculation parameters:', {
+  //         nights,
+  //         propertyPrice,
+  //         utilityPercentage,
+  //         serviceChargePercentage,
+  //         vatPercentage
+  //       });
         
-        // Calculate per night (following your formula)
-        const actualPricePerNight = propertyPrice;
-        const utilityPerNight = (actualPricePerNight * utilityPercentage) / 100;
-        const serviceChargePerNight = (actualPricePerNight * serviceChargePercentage) / 100;
-        const accommodationPerNight = actualPricePerNight - utilityPerNight - serviceChargePerNight;
-        const vatPerNight = (accommodationPerNight * vatPercentage) / 100;
-        const totalPerNight = actualPricePerNight + vatPerNight;
+  //       // Calculate per night (following your formula)
+  //       const actualPricePerNight = propertyPrice;
+  //       const utilityPerNight = (actualPricePerNight * utilityPercentage) / 100;
+  //       const serviceChargePerNight = (actualPricePerNight * serviceChargePercentage) / 100;
+  //       const accommodationPerNight = actualPricePerNight - utilityPerNight - serviceChargePerNight;
+  //       const vatPerNight = (accommodationPerNight * vatPercentage) / 100;
+  //       const totalPerNight = actualPricePerNight + vatPerNight;
         
-        // Calculate total for all nights
-        totalAmount = totalPerNight * nights;
+  //       // Calculate total for all nights
+  //       totalAmount = totalPerNight * nights;
         
-        console.log('🧮 [Backend] Calculated from scratch:', {
-          perNight: {
-            actualPrice: actualPricePerNight,
-            utility: utilityPerNight,
-            serviceCharge: serviceChargePerNight,
-            accommodation: accommodationPerNight,
-            vat: vatPerNight,
-            total: totalPerNight
-          },
-          totalForStay: totalAmount
-        });
+  //       console.log('🧮 [Backend] Calculated from scratch:', {
+  //         perNight: {
+  //           actualPrice: actualPricePerNight,
+  //           utility: utilityPerNight,
+  //           serviceCharge: serviceChargePerNight,
+  //           accommodation: accommodationPerNight,
+  //           vat: vatPerNight,
+  //           total: totalPerNight
+  //         },
+  //         totalForStay: totalAmount
+  //       });
         
-        // Update booking with calculated amount
-        booking.priceBreakdown = {
-          actualPrice: actualPricePerNight * nights,
-          utilityPercentage,
-          utility: utilityPerNight * nights,
-          serviceChargePercentage,
-          serviceCharge: serviceChargePerNight * nights,
-          accommodation: accommodationPerNight * nights,
-          vatPercentage,
-          vat: vatPerNight * nights,
-          subtotal: actualPricePerNight * nights,
-          totalAmount: totalAmount
-        };
-        booking.totalAmount = totalAmount;
-        await booking.save();
-        console.log('💾 [Backend] Updated booking with calculated price');
-      }
+  //       // Update booking with calculated amount
+  //       booking.priceBreakdown = {
+  //         actualPrice: actualPricePerNight * nights,
+  //         utilityPercentage,
+  //         utility: utilityPerNight * nights,
+  //         serviceChargePercentage,
+  //         serviceCharge: serviceChargePerNight * nights,
+  //         accommodation: accommodationPerNight * nights,
+  //         vatPercentage,
+  //         vat: vatPerNight * nights,
+  //         subtotal: actualPricePerNight * nights,
+  //         totalAmount: totalAmount
+  //       };
+  //       booking.totalAmount = totalAmount;
+  //       await booking.save();
+  //       console.log('💾 [Backend] Updated booking with calculated price');
+  //     }
 
-      // CRITICAL: Validate totalAmount is a valid number
-      if (typeof totalAmount !== 'number' || isNaN(totalAmount) || !isFinite(totalAmount)) {
-        console.error('❌ [Backend] Invalid totalAmount:', totalAmount);
-        return res.status(400).json({ 
-          success: false,
-          message: "Invalid payment amount. Please contact support." 
-        });
-      }
+  //     // CRITICAL: Validate totalAmount is a valid number
+  //     if (typeof totalAmount !== 'number' || isNaN(totalAmount) || !isFinite(totalAmount)) {
+  //       console.error('❌ [Backend] Invalid totalAmount:', totalAmount);
+  //       return res.status(400).json({ 
+  //         success: false,
+  //         message: "Invalid payment amount. Please contact support." 
+  //       });
+  //     }
 
-      // Round to 2 decimal places to avoid floating point issues
-      totalAmount = Math.round(totalAmount * 100) / 100;
+  //     // Round to 2 decimal places to avoid floating point issues
+  //     totalAmount = Math.round(totalAmount * 100) / 100;
 
-      // CRITICAL: Ensure minimum amount for Paystack (₦1 minimum)
-      if (totalAmount < 1) {
-        console.error('❌ [Backend] Amount too small for Paystack:', {
-          totalAmountNaira: totalAmount,
-          minRequiredNaira: 1
-        });
+  //     // CRITICAL: Ensure minimum amount for Paystack (₦1 minimum)
+  //     if (totalAmount < 1) {
+  //       console.error('❌ [Backend] Amount too small for Paystack:', {
+  //         totalAmountNaira: totalAmount,
+  //         minRequiredNaira: 1
+  //       });
         
-        // Update booking with error
-        booking.bookingStatus = 'pending';
-        booking.paymentStatus = 'failed';
-        booking.cancellationReason = `Amount too small for payment (₦${totalAmount})`;
-        await booking.save();
+  //       // Update booking with error
+  //       booking.bookingStatus = 'pending';
+  //       booking.paymentStatus = 'failed';
+  //       booking.cancellationReason = `Amount too small for payment (₦${totalAmount})`;
+  //       await booking.save();
         
-        return res.status(400).json({
-          success: false,
-          message: `Total amount (₦${totalAmount.toFixed(2)}) is less than minimum ₦1 required for payment. Please contact support.`
-        });
-      }
+  //       return res.status(400).json({
+  //         success: false,
+  //         message: `Total amount (₦${totalAmount.toFixed(2)}) is less than minimum ₦1 required for payment. Please contact support.`
+  //       });
+  //     }
 
-      // Convert to kobo for Paystack (1 Naira = 100 kobo)
-      const totalAmountInKobo = Math.round(totalAmount * 100);
+  //     // Convert to kobo for Paystack (1 Naira = 100 kobo)
+  //     const totalAmountInKobo = Math.round(totalAmount * 100);
 
-      // CRITICAL DEBUG: Log all amount details
-      console.log('🔍 [Backend] AMOUNT VALIDATION:', {
-        totalAmountNaira: totalAmount,
-        totalAmountInKobo: totalAmountInKobo,
-        isNumber: typeof totalAmount === 'number',
-        isFinite: Number.isFinite(totalAmount),
-        isIntegerKobo: Number.isInteger(totalAmountInKobo),
-        minKobo: 100,
-        meetsMin: totalAmountInKobo >= 100,
-        bookingPriceBreakdown: booking.priceBreakdown,
-        bookingTotalAmount: booking.totalAmount
-      });
+  //     // CRITICAL DEBUG: Log all amount details
+  //     console.log('🔍 [Backend] AMOUNT VALIDATION:', {
+  //       totalAmountNaira: totalAmount,
+  //       totalAmountInKobo: totalAmountInKobo,
+  //       isNumber: typeof totalAmount === 'number',
+  //       isFinite: Number.isFinite(totalAmount),
+  //       isIntegerKobo: Number.isInteger(totalAmountInKobo),
+  //       minKobo: 100,
+  //       meetsMin: totalAmountInKobo >= 100,
+  //       bookingPriceBreakdown: booking.priceBreakdown,
+  //       bookingTotalAmount: booking.totalAmount
+  //     });
 
-      // Additional validation for Paystack
-      if (totalAmountInKobo < 100) {
-        console.error('❌ [Backend] Amount in kobo too small:', {
-          totalAmountNaira: totalAmount,
-          totalAmountInKobo: totalAmountInKobo,
-          minRequiredKobo: 100,
-          minRequiredNaira: 1
-        });
-        return res.status(400).json({
-          success: false,
-          message: `Payment amount (${totalAmountInKobo} kobo = ₦${totalAmount.toFixed(2)}) is below Paystack minimum of 100 kobo (₦1).`
-        });
-      }
+  //     // Additional validation for Paystack
+  //     if (totalAmountInKobo < 100) {
+  //       console.error('❌ [Backend] Amount in kobo too small:', {
+  //         totalAmountNaira: totalAmount,
+  //         totalAmountInKobo: totalAmountInKobo,
+  //         minRequiredKobo: 100,
+  //         minRequiredNaira: 1
+  //       });
+  //       return res.status(400).json({
+  //         success: false,
+  //         message: `Payment amount (${totalAmountInKobo} kobo = ₦${totalAmount.toFixed(2)}) is below Paystack minimum of 100 kobo (₦1).`
+  //       });
+  //     }
 
-      if (!Number.isInteger(totalAmountInKobo)) {
-        console.error('❌ [Backend] Amount in kobo is not integer:', totalAmountInKobo);
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid amount calculation. Amount must be in whole kobo.'
-        });
-      }
+  //     if (!Number.isInteger(totalAmountInKobo)) {
+  //       console.error('❌ [Backend] Amount in kobo is not integer:', totalAmountInKobo);
+  //       return res.status(400).json({
+  //         success: false,
+  //         message: 'Invalid amount calculation. Amount must be in whole kobo.'
+  //       });
+  //     }
 
-      // Validate maximum amount for Paystack (₦50,000,000 = 5,000,000,000 kobo)
-      if (totalAmountInKobo > 5000000000) {
-        console.error('❌ [Backend] Amount too large for Paystack:', totalAmountInKobo);
-        return res.status(400).json({
-          success: false,
-          message: `Payment amount (₦${totalAmount.toLocaleString()}) exceeds maximum allowed amount.`
-        });
-      }
+  //     // Validate maximum amount for Paystack (₦50,000,000 = 5,000,000,000 kobo)
+  //     if (totalAmountInKobo > 5000000000) {
+  //       console.error('❌ [Backend] Amount too large for Paystack:', totalAmountInKobo);
+  //       return res.status(400).json({
+  //         success: false,
+  //         message: `Payment amount (₦${totalAmount.toLocaleString()}) exceeds maximum allowed amount.`
+  //       });
+  //     }
 
-      console.log('🎯 [Backend] Calling Paystack with:', {
-        email: email || booking.user.email,
-        amount: totalAmountInKobo,
-        amountInNaira: totalAmount,
-        reference: booking.paymentReference,
-        bookingId: booking._id.toString(),
-        propertyTitle: booking.property?.title || 'Unknown Property',
-        customerName: `${booking.user.firstName} ${booking.user.lastName}`,
-        nights: Math.ceil((new Date(booking.checkOut) - new Date(booking.checkIn)) / (1000 * 60 * 60 * 24))
-      });
+  //     console.log('🎯 [Backend] Calling Paystack with:', {
+  //       email: email || booking.user.email,
+  //       amount: totalAmountInKobo,
+  //       amountInNaira: totalAmount,
+  //       reference: booking.paymentReference,
+  //       bookingId: booking._id.toString(),
+  //       propertyTitle: booking.property?.title || 'Unknown Property',
+  //       customerName: `${booking.user.firstName} ${booking.user.lastName}`,
+  //       nights: Math.ceil((new Date(booking.checkOut) - new Date(booking.checkIn)) / (1000 * 60 * 60 * 24))
+  //     });
 
-      try {
-        // Initialize Paystack payment
-        const paymentData = await paystack.initializeTransaction({
-          email: email || booking.user.email,
-          amount: totalAmountInKobo,
-          reference: booking.paymentReference,
-          metadata: {
-            bookingId: booking._id.toString(),
-            propertyTitle: booking.property?.title || 'Unknown Property',
-            customerName: `${booking.user.firstName} ${booking.user.lastName}`,
-            paymentMethod: 'paystack',
-            totalAmount: totalAmount,
-            nights: Math.ceil((new Date(booking.checkOut) - new Date(booking.checkIn)) / (1000 * 60 * 60 * 24)) || 1
-          },
-          callback_url: `${process.env.CLIENT_URL}/booking/success`
-        });
+  //     try {
+  //       // Initialize Paystack payment
+  //       const paymentData = await paystack.initializeTransaction({
+  //         email: email || booking.user.email,
+  //         amount: totalAmountInKobo,
+  //         reference: booking.paymentReference,
+  //         metadata: {
+  //           bookingId: booking._id.toString(),
+  //           propertyTitle: booking.property?.title || 'Unknown Property',
+  //           customerName: `${booking.user.firstName} ${booking.user.lastName}`,
+  //           paymentMethod: 'paystack',
+  //           totalAmount: totalAmount,
+  //           nights: Math.ceil((new Date(booking.checkOut) - new Date(booking.checkIn)) / (1000 * 60 * 60 * 24)) || 1
+  //         },
+  //         callback_url: `${process.env.CLIENT_URL}/booking/success`
+  //       });
 
-        console.log('✅ [Backend] Paystack returned:', {
-          success: !!paymentData,
-          authorizationUrl: paymentData?.authorization_url ? 'PRESENT' : 'MISSING',
-          reference: paymentData?.reference,
-          accessCode: paymentData?.access_code
-        });
+  //       console.log('✅ [Backend] Paystack returned:', {
+  //         success: !!paymentData,
+  //         authorizationUrl: paymentData?.authorization_url ? 'PRESENT' : 'MISSING',
+  //         reference: paymentData?.reference,
+  //         accessCode: paymentData?.access_code
+  //       });
 
-        // Check if Paystack returned valid data
-        if (!paymentData || !paymentData.authorization_url) {
-          console.error('❌ [Backend] Paystack returned invalid data:', paymentData);
-          return res.status(500).json({ 
-            success: false,
-            message: "Payment gateway returned invalid response",
-            details: "No payment URL received from Paystack"
-          });
-        }
+  //       // Check if Paystack returned valid data
+  //       if (!paymentData || !paymentData.authorization_url) {
+  //         console.error('❌ [Backend] Paystack returned invalid data:', paymentData);
+  //         return res.status(500).json({ 
+  //           success: false,
+  //           message: "Payment gateway returned invalid response",
+  //           details: "No payment URL received from Paystack"
+  //         });
+  //       }
 
-        // Update booking with Paystack reference
-        booking.paystackReference = paymentData.reference;
-        await booking.save();
+  //       // Update booking with Paystack reference
+  //       booking.paystackReference = paymentData.reference;
+  //       await booking.save();
 
-        console.log('✅ [Backend] Payment initialized successfully for booking:', {
-          bookingId: booking._id,
-          amountNaira: totalAmount,
-          amountKobo: totalAmountInKobo,
-          reference: paymentData.reference,
-          authorizationUrl: paymentData.authorization_url
-        });
+  //       console.log('✅ [Backend] Payment initialized successfully for booking:', {
+  //         bookingId: booking._id,
+  //         amountNaira: totalAmount,
+  //         amountKobo: totalAmountInKobo,
+  //         reference: paymentData.reference,
+  //         authorizationUrl: paymentData.authorization_url
+  //       });
 
-        // Return the paymentData
-        res.status(200).json({
-          success: true,
-          message: "Payment initialized successfully",
-          authorization_url: paymentData.authorization_url,
-          reference: paymentData.reference,
-          access_code: paymentData.access_code,
-          paymentMethod: 'paystack',
-          amount: totalAmount,
-          amountInKobo: totalAmountInKobo,
-          bookingId: booking._id,
-          booking: {
-            _id: booking._id,
-            totalAmount: booking.totalAmount,
-            priceBreakdown: booking.priceBreakdown
-          }
-        });
+  //       // Return the paymentData
+  //       res.status(200).json({
+  //         success: true,
+  //         message: "Payment initialized successfully",
+  //         authorization_url: paymentData.authorization_url,
+  //         reference: paymentData.reference,
+  //         access_code: paymentData.access_code,
+  //         paymentMethod: 'paystack',
+  //         amount: totalAmount,
+  //         amountInKobo: totalAmountInKobo,
+  //         bookingId: booking._id,
+  //         booking: {
+  //           _id: booking._id,
+  //           totalAmount: booking.totalAmount,
+  //           priceBreakdown: booking.priceBreakdown
+  //         }
+  //       });
 
-      } catch (paystackError) {
-        console.error('💥 [Backend] Paystack API Error:', {
-          message: paystackError.message,
-          response: paystackError.response?.data,
-          status: paystackError.response?.status,
-          stack: paystackError.stack
-        });
+  //     } catch (paystackError) {
+  //       console.error('💥 [Backend] Paystack API Error:', {
+  //         message: paystackError.message,
+  //         response: paystackError.response?.data,
+  //         status: paystackError.response?.status,
+  //         stack: paystackError.stack
+  //       });
         
-        // Update booking status on Paystack error
-        booking.paymentStatus = 'failed';
-        await booking.save();
+  //       // Update booking status on Paystack error
+  //       booking.paymentStatus = 'failed';
+  //       await booking.save();
         
-        // Extract error message
-        let errorMessage = paystackError.message;
-        if (paystackError.response?.data?.message) {
-          errorMessage = paystackError.response.data.message;
-        }
+  //       // Extract error message
+  //       let errorMessage = paystackError.message;
+  //       if (paystackError.response?.data?.message) {
+  //         errorMessage = paystackError.response.data.message;
+  //       }
         
-        // Handle specific Paystack errors
-        if (errorMessage.includes('Invalid Amount')) {
-          return res.status(400).json({ 
-            success: false,
-            message: `Invalid amount sent to payment gateway. Amount: ₦${totalAmount} (${totalAmountInKobo} kobo). ${errorMessage}`,
-            details: paystackError.response?.data
-          });
-        }
+  //       // Handle specific Paystack errors
+  //       if (errorMessage.includes('Invalid Amount')) {
+  //         return res.status(400).json({ 
+  //           success: false,
+  //           message: `Invalid amount sent to payment gateway. Amount: ₦${totalAmount} (${totalAmountInKobo} kobo). ${errorMessage}`,
+  //           details: paystackError.response?.data
+  //         });
+  //       }
         
-        throw paystackError;
-      }
+  //       throw paystackError;
+  //     }
 
-    } catch (error) {
-      console.error('💥 [Backend] Initialize payment error:', {
-        name: error.name,
-        message: error.message,
-        stack: error.stack,
-        response: error.response?.data
-      });
+  //   } catch (error) {
+  //     console.error('💥 [Backend] Initialize payment error:', {
+  //       name: error.name,
+  //       message: error.message,
+  //       stack: error.stack,
+  //       response: error.response?.data
+  //     });
       
-      // Handle specific errors
-      if (error.name === 'CastError') {
-        return res.status(400).json({ 
-          success: false,
-          message: "Invalid booking ID format" 
-        });
-      }
+  //     // Handle specific errors
+  //     if (error.name === 'CastError') {
+  //       return res.status(400).json({ 
+  //         success: false,
+  //         message: "Invalid booking ID format" 
+  //       });
+  //     }
       
-      // Check if it's a Paystack error
-      if (error.message.includes('Paystack Error') || error.message.includes('Invalid Amount')) {
-        return res.status(400).json({ 
-          success: false,
-          message: error.message || 'Invalid amount sent to payment gateway',
-          details: error.response?.data?.message || 'Amount validation failed'
-        });
-      }
+  //     // Check if it's a Paystack error
+  //     if (error.message.includes('Paystack Error') || error.message.includes('Invalid Amount')) {
+  //       return res.status(400).json({ 
+  //         success: false,
+  //         message: error.message || 'Invalid amount sent to payment gateway',
+  //         details: error.response?.data?.message || 'Amount validation failed'
+  //       });
+  //     }
       
-      res.status(500).json({ 
+  //     res.status(500).json({ 
+  //       success: false,
+  //       message: "Failed to initialize payment", 
+  //       error: error.message,
+  //       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+  //     });
+  //   }
+  // },
+
+
+ initializePayment: async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { email } = req.body;
+
+    console.log('🎯 [Backend] Initialize payment called for booking:', id);
+
+    // Validate booking ID
+    if (!id || id === 'undefined' || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ 
         success: false,
-        message: "Failed to initialize payment", 
-        error: error.message,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        message: "Invalid booking ID" 
       });
     }
-  },
 
+    const booking = await Booking.findById(id)
+      .populate('property', 'title price')
+      .populate('user', 'firstName lastName email');
 
+    if (!booking) {
+      console.log('❌ [Backend] Booking not found:', id);
+      return res.status(404).json({ 
+        success: false,
+        message: "Booking not found" 
+      });
+    }
+
+    // Check if booking belongs to user
+    if (booking.user._id.toString() !== req.user.id && req.user.role !== 'admin') {
+      console.log('❌ [Backend] Access denied for user:', req.user.id);
+      return res.status(403).json({ 
+        success: false,
+        message: "Access denied" 
+      });
+    }
+
+    // Check if booking is already paid
+    if (booking.paymentStatus === 'paid') {
+      console.log('ℹ️ [Backend] Booking already paid:', id);
+      return res.status(400).json({ 
+        success: false,
+        message: "Booking already paid" 
+      });
+    }
+
+    // Check payment method
+    if (booking.paymentMethod !== 'paystack') {
+      console.log('ℹ️ [Backend] Wrong payment method:', booking.paymentMethod);
+      return res.status(400).json({ 
+        success: false,
+        message: `This booking uses ${booking.paymentMethod === 'bank_transfer' ? 'bank transfer' : 'onsite payment'}. Please use the appropriate payment process.` 
+      });
+    }
+
+    // Generate new payment reference if payment was previously initialized but failed
+    if (booking.paystackReference && booking.paymentStatus === 'pending') {
+      booking.paymentReference = `HOLS-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      booking.paystackReference = undefined;
+      await booking.save();
+      console.log('🔄 [Backend] Generated new payment reference:', booking.paymentReference);
+    }
+
+    // Get the amount from priceBreakdown
+    let totalAmountNaira = 0;
+    
+    if (booking.priceBreakdown && booking.priceBreakdown.totalAmount) {
+      totalAmountNaira = booking.priceBreakdown.totalAmount;
+      console.log('💰 [Backend] Using priceBreakdown.totalAmount:', totalAmountNaira);
+    } else if (booking.totalAmount) {
+      totalAmountNaira = booking.totalAmount;
+      console.log('💰 [Backend] Using booking.totalAmount:', totalAmountNaira);
+    } else {
+      console.error('❌ [Backend] No amount found in booking');
+      return res.status(400).json({ 
+        success: false,
+        message: "Booking amount not found" 
+      });
+    }
+    
+    // CRITICAL FIX: Validate and format amount
+    // 1. Ensure it's a number
+    if (typeof totalAmountNaira !== 'number' || isNaN(totalAmountNaira) || !isFinite(totalAmountNaira)) {
+      console.error('❌ [Backend] Invalid amount:', totalAmountNaira);
+      return res.status(400).json({ 
+        success: false,
+        message: "Invalid payment amount" 
+      });
+    }
+    
+    // 2. Round to 2 decimal places to avoid floating point issues
+    totalAmountNaira = Math.round(totalAmountNaira * 100) / 100;
+    
+    // 3. Convert to kobo (Multiply by 100) - THIS IS CRITICAL
+    let totalAmountInKobo = Math.round(totalAmountNaira * 100);
+    
+    // CRITICAL DEBUG: Show conversion
+    console.log('💰 [Backend] AMOUNT CONVERSION:', {
+      bookingId: booking._id,
+      
+      // Your example: ₦157,875
+      nairaAmount: totalAmountNaira,
+      koboAmount: totalAmountInKobo,
+      
+      // Show the exact calculation
+      calculation: `${totalAmountNaira} × 100 = ${totalAmountInKobo}`,
+      
+      // Example: ₦157,875 → 15,787,500 kobo
+      exampleConversion: `₦${totalAmountNaira} → ${totalAmountInKobo} kobo`,
+      
+      // Validation
+      isInteger: Number.isInteger(totalAmountInKobo),
+      isPositive: totalAmountInKobo > 0,
+      meetsMinimum: totalAmountInKobo >= 100,
+      
+      // For your specific example:
+      yourExample: '₦157,875 should be: 157875 × 100 = 15,787,500 kobo'
+    });
+
+    // VALIDATION: Ensure amount is integer in kobo
+    if (!Number.isInteger(totalAmountInKobo)) {
+      console.error('❌ [Backend] Amount in kobo is not integer:', {
+        naira: totalAmountNaira,
+        kobo: totalAmountInKobo,
+        calculation: `${totalAmountNaira} × 100 = ${totalAmountNaira * 100}`
+      });
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid amount conversion. Amount must be whole number in kobo.'
+      });
+    }
+
+    // VALIDATION: Minimum amount (₦1 = 100 kobo)
+    if (totalAmountInKobo < 100) {
+      console.error('❌ [Backend] Amount too small:', {
+        naira: totalAmountNaira,
+        kobo: totalAmountInKobo,
+        minRequired: 100
+      });
+      return res.status(400).json({
+        success: false,
+        message: `Amount (₦${totalAmountNaira}) is too small. Minimum is ₦1.`
+      });
+    }
+
+    // VALIDATION: Check if amount is ridiculously large (potential double conversion)
+    if (totalAmountInKobo > 1000000000) { // 10 million Naira
+      console.error('❌ [Backend] Amount suspiciously large:', {
+        naira: totalAmountNaira,
+        kobo: totalAmountInKobo,
+        warning: 'Possible double conversion (naira × 100 × 100)'
+      });
+      return res.status(400).json({
+        success: false,
+        message: `Amount error. Please check calculation: ₦${totalAmountNaira} should be ${totalAmountInKobo} kobo`
+      });
+    }
+
+    console.log('🎯 [Backend] Calling Paystack with:', {
+      email: email || booking.user.email,
+      amountInKobo: totalAmountInKobo,
+      amountInNaira: totalAmountNaira,
+      reference: booking.paymentReference,
+      conversion: `${totalAmountNaira} NGN = ${totalAmountInKobo} kobo`,
+      bookingId: booking._id
+    });
+
+    try {
+      // Initialize Paystack payment - amount MUST be in kobo
+      const paymentData = await paystack.initializeTransaction({
+        email: email || booking.user.email,
+        amount: totalAmountInKobo,  // THIS MUST BE IN KOBO (15787500 for ₦157,875)
+        reference: booking.paymentReference,
+        metadata: {
+          bookingId: booking._id.toString(),
+          propertyTitle: booking.property?.title || 'Unknown Property',
+          customerName: `${booking.user.firstName} ${booking.user.lastName}`,
+          paymentMethod: 'paystack',
+          totalAmountNaira: totalAmountNaira,
+          totalAmountKobo: totalAmountInKobo
+        },
+        callback_url: `${process.env.CLIENT_URL}/booking/success`
+      });
+
+      console.log('✅ [Backend] Paystack response received:', {
+        hasAuthorizationUrl: !!paymentData?.authorization_url,
+        reference: paymentData?.reference
+      });
+
+      if (!paymentData || !paymentData.authorization_url) {
+        console.error('❌ [Backend] Invalid Paystack response:', paymentData);
+        return res.status(500).json({ 
+          success: false,
+          message: "Payment gateway error" 
+        });
+      }
+
+      // Update booking with Paystack reference
+      booking.paystackReference = paymentData.reference;
+      await booking.save();
+
+      console.log('✅ [Backend] Payment initialized successfully:', {
+        bookingId: booking._id,
+        amountNaira: totalAmountNaira,
+        amountKobo: totalAmountInKobo,
+        reference: paymentData.reference,
+        authorizationUrl: paymentData.authorization_url
+      });
+
+      // Return response
+      res.status(200).json({
+        success: true,
+        message: "Payment initialized successfully",
+        authorization_url: paymentData.authorization_url,
+        reference: paymentData.reference,
+        access_code: paymentData.access_code,
+        amount: totalAmountNaira,
+        amountInKobo: totalAmountInKobo,
+        bookingId: booking._id
+      });
+
+    } catch (paystackError) {
+      console.error('💥 [Backend] Paystack API Error:', {
+        message: paystackError.message,
+        response: paystackError.response?.data,
+        status: paystackError.response?.status
+      });
+      
+      // Update booking status
+      booking.paymentStatus = 'failed';
+      await booking.save();
+      
+      // Check for specific Paystack errors
+      const paystackResponse = paystackError.response?.data;
+      
+      if (paystackResponse?.message?.includes('Invalid Amount')) {
+        console.error('🔍 [Backend] INVALID AMOUNT ERROR DETAILS:', {
+          // What we sent
+          sentAmountKobo: totalAmountInKobo,
+          sentAmountNaira: totalAmountNaira,
+          
+          // For debugging
+          conversionCheck: {
+            expected: `₦${totalAmountNaira} → ${totalAmountNaira * 100} kobo`,
+            actualSent: `${totalAmountInKobo} kobo`,
+            calculation: `${totalAmountNaira} × 100 = ${totalAmountInKobo}`,
+            isCorrect: totalAmountInKobo === totalAmountNaira * 100
+          },
+          
+          // Paystack response
+          paystackError: paystackResponse
+        });
+        
+        // Provide clear error message
+        let errorMessage = `Payment amount error. We sent ${totalAmountInKobo} kobo (₦${totalAmountNaira}). `;
+        
+        // Check for common mistakes
+        if (totalAmountInKobo === totalAmountNaira) {
+          errorMessage += "ERROR: Amount was NOT converted to kobo (should be naira × 100).";
+        } else if (totalAmountInKobo === totalAmountNaira * 10000) {
+          errorMessage += "ERROR: Double conversion detected (naira × 100 × 100).";
+        } else {
+          errorMessage += "Please verify the amount is correctly converted to kobo.";
+        }
+        
+        return res.status(400).json({ 
+          success: false,
+          message: errorMessage,
+          details: {
+            nairaAmount: totalAmountNaira,
+            koboAmountSent: totalAmountInKobo,
+            expectedKobo: totalAmountNaira * 100,
+            paystackError: paystackResponse?.message
+          }
+        });
+      }
+      
+      // Generic error
+      return res.status(400).json({ 
+        success: false,
+        message: paystackError.message || 'Payment initialization failed'
+      });
+    }
+
+  } catch (error) {
+    console.error('💥 [Backend] Initialize payment error:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
+    
+    // Handle specific errors
+    if (error.name === 'CastError') {
+      return res.status(400).json({ 
+        success: false,
+        message: "Invalid booking ID format" 
+      });
+    }
+    
+    res.status(500).json({ 
+      success: false,
+      message: "Failed to initialize payment",
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+},
+
+ 
   // Verify payment @@@@@@@@ THE ONE BELOW IS WORKING @@@@@@@@@@@@@@@@@@@@@@@@@
   // verifyPayment: async (req, res) => {
   //   try {
