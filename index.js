@@ -119,7 +119,7 @@ app.use((req, res, next) => {
     "https://holsapartments.com",
     "https://holsapartments.vercel.app", 
     "https://shortletfront.vercel.app",
-    "https://www.holsapartments.com",
+    "https://www.holsapartments.com",  
     "http://localhost:3000",
     "http://localhost:3001"
   ];
