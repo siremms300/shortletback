@@ -131,18 +131,92 @@ expenseSchema.index({ status: 1 });
 expenseSchema.index({ date: -1 });
 expenseSchema.index({ tags: 1 });
 
+// // Budget Schema
+// const budgetSchema = new mongoose.Schema({
+//   budgetNumber: {
+//     type: String,
+//     unique: true,
+//     required: true
+//   },
+//   category: {
+//     type: String,
+//     required: true,
+//     trim: true,
+//     unique: true
+//   },
+//   allocated: {
+//     type: Number,
+//     required: true,
+//     min: 0
+//   },
+//   spent: {
+//     type: Number,
+//     default: 0,
+//     min: 0
+//   },
+//   period: {
+//     type: String,
+//     enum: ['monthly', 'quarterly', 'yearly'],
+//     required: true
+//   },
+//   fiscalYear: {
+//     type: Number,
+//     required: true
+//   },
+//   startDate: {
+//     type: Date,
+//     required: true
+//   },
+//   endDate: {
+//     type: Date,
+//     required: true
+//   },
+//   notes: {
+//     type: String,
+//     trim: true
+//   },
+//   isActive: {
+//     type: Boolean,
+//     default: true
+//   },
+//   createdBy: {
+//     type: mongoose.Schema.Types.ObjectId,
+//     ref: 'User',
+//     required: true
+//   },
+//   updatedBy: {
+//     type: mongoose.Schema.Types.ObjectId,
+//     ref: 'User'
+//   }
+// }, {
+//   timestamps: true
+// });
+
+// // Pre-save hook to generate budget number
+// budgetSchema.pre('save', async function(next) {
+//   if (this.isNew && !this.budgetNumber) {
+//     try {
+//       const count = await mongoose.model('Budget').countDocuments();
+//       this.budgetNumber = `BUD-${String(count + 1).padStart(4, '0')}`;
+//     } catch (error) {
+//       this.budgetNumber = `BUD-${Date.now()}`;
+//     }
+//   }
+//   next();
+// });
+
+
+
 // Budget Schema
 const budgetSchema = new mongoose.Schema({
   budgetNumber: {
     type: String,
-    unique: true,
-    required: true
+    unique: true
   },
   category: {
     type: String,
     required: true,
-    trim: true,
-    unique: true
+    trim: true
   },
   allocated: {
     type: Number,
@@ -192,18 +266,29 @@ const budgetSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Create a compound index to ensure uniqueness of category + period + fiscalYear
+budgetSchema.index({ category: 1, period: 1, fiscalYear: 1 }, { unique: true });
+
 // Pre-save hook to generate budget number
 budgetSchema.pre('save', async function(next) {
   if (this.isNew && !this.budgetNumber) {
     try {
       const count = await mongoose.model('Budget').countDocuments();
       this.budgetNumber = `BUD-${String(count + 1).padStart(4, '0')}`;
+      console.log('Generated budget number:', this.budgetNumber);
     } catch (error) {
+      console.error('Error generating budget number:', error);
       this.budgetNumber = `BUD-${Date.now()}`;
     }
   }
   next();
 });
+
+
+
+
+
+
 
 // Expense Vendor Schema (renamed from Vendor to ExpenseVendor to avoid conflict)
 const expenseVendorSchema = new mongoose.Schema({
