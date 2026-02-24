@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const expenseController = require("../Controllers/expenseController");
 const authMiddleware = require("../middleware/authMiddleware");
-const { uploadExpenseReceipt, handleUploadErrors } = require("../middleware/uploadMiddleware");
+const { uploadExpenseReceipt, handleUploadErrors, handleExpenseReceiptErrors } = require("../middleware/uploadMiddleware");
 const { createUploadHandler } = require("../middleware/uploadHandler");
 
 // All routes require authentication
