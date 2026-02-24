@@ -1,66 +1,7 @@
 const { Vendor, VendorProduct } = require("../Models/VendorModel");
 
 const vendorProductController = {
-  // Add product to vendor (Admin only)
-  // createProduct: async (req, res) => {
-  //   try {
-  //     const {
-  //       name,
-  //       description,
-  //       category,
-  //       price,
-  //       stockQuantity,
-  //       minOrderQuantity,
-  //       maxOrderQuantity,
-  //       preparationTime,
-  //       tags,
-  //       vendorId
-  //     } = req.body;
-
-  //     const images = req.files ? req.files.map((file, index) => ({
-  //       url: `/uploads/vendor-products/${file.filename}`,
-  //       isMain: index === 0
-  //     })) : [];
-
-  //     // Verify vendor exists and is active
-  //     const vendor = await Vendor.findOne({ _id: vendorId, status: 'active' });
-  //     if (!vendor) {
-  //       return res.status(404).json({ message: "Active vendor not found" });
-  //     }
-
-  //     const product = new VendorProduct({
-  //       name,
-  //       description,
-  //       category,
-  //       price: parseFloat(price),
-  //       images,
-  //       vendor: vendorId,
-  //       stockQuantity: parseInt(stockQuantity) || 0,
-  //       minOrderQuantity: parseInt(minOrderQuantity) || 1,
-  //       maxOrderQuantity: parseInt(maxOrderQuantity) || 10,
-  //       preparationTime: parseInt(preparationTime) || 30,
-  //       tags: tags || []
-  //     });
-
-  //     await product.save();
-
-  //     const populatedProduct = await VendorProduct.findById(product._id)
-  //       .populate('vendor', 'businessName');
-
-  //     res.status(201).json({
-  //       message: "Product created successfully",
-  //       product: populatedProduct
-  //     });
-
-  //   } catch (error) {
-  //     console.error('Create product error:', error);
-  //     res.status(500).json({ 
-  //       message: "Failed to create product", 
-  //       error: error.message 
-  //     });
-  //   }
-  // },
-
+  
   // In vendorProductController.js - update createProduct function
   createProduct: async (req, res) => {
     try {

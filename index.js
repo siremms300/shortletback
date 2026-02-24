@@ -4,7 +4,7 @@ const mongoose = require("mongoose");
 const dotenv = require("dotenv").config();
 const cors = require("cors");
 const path = require("path");
-const helmet = require("helmet");
+const helmet = require("helmet"); 
 
 const authRoutes = require("./Routes/authRoute.js"); 
 const userRoutes = require("./Routes/userRoute.js"); 
@@ -17,6 +17,11 @@ const housekeepingRoutes = require("./Routes/housekeepingRoute");
 const inventoryRoutes = require("./Routes/inventoryRoute"); 
 const maintenanceRoutes = require("./Routes/maintenanceRoute"); 
 const staffRoutes = require("./Routes/staffRoute");
+const utilityRoutes = require("./Routes/utilityRoutes"); 
+const expenseRoutes = require("./Routes/expenseRoutes");
+ 
+
+
 
 const app = express();
 
@@ -143,7 +148,7 @@ app.use((req, res, next) => {
     res.header('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.header('Pragma', 'no-cache');
     res.header('Expires', '0');
-  }
+  } 
   
   next();
 });
@@ -172,6 +177,10 @@ app.use("/housekeeping", housekeepingRoutes);
 app.use("/inventory", inventoryRoutes);
 app.use("/maintenance", maintenanceRoutes); 
 app.use("/staff", staffRoutes);
+app.use("/utility", utilityRoutes);
+app.use("/expenses", expenseRoutes);
+
+
 
 
 // Add this in your server/index.js, after all your other routes but BEFORE the 404 handler

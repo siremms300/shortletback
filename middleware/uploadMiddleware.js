@@ -1,4 +1,3 @@
-// middleware/uploadMiddleware.js - COMPLETE FIXED VERSION
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -19,6 +18,7 @@ const createUploadDirs = () => {
     'public/uploads/users',
     'public/uploads/properties',
     'public/uploads/vendor-products',
+    'public/uploads/expenses', // Add expenses directory
     'uploads/payments'
   ];
   
@@ -62,6 +62,7 @@ const userStorage = getStorage('public/uploads/users', 'user');
 const propertyStorage = getStorage('public/uploads/properties', 'property');
 const vendorProductStorage = getStorage('public/uploads/vendor-products', 'vendor-product');
 const paymentProofStorage = getStorage('uploads/payments', 'payment');
+const expenseReceiptStorage = getStorage('public/uploads/expenses', 'expense'); // Add this
 
 // ========== FILE FILTERS ==========
 const imageFileFilter = (req, file, cb) => {
@@ -81,29 +82,45 @@ const paymentProofFileFilter = (req, file, cb) => {
   }
 };
 
+const expenseReceiptFileFilter = (req, file, cb) => {
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only JPG, PNG, and PDF files are allowed'), false);
+  }
+};
+
 // ========== MULTER INSTANCES ==========
 const uploadUserProfile = multer({
   storage: userStorage,
   fileFilter: imageFileFilter,
-  limits: { fileSize: 15 * 1024 * 1024 } // 5MB
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB
 });
 
 const uploadProperties = multer({
   storage: propertyStorage,
   fileFilter: imageFileFilter,
-  limits: { fileSize: 15 * 1024 * 1024 } // 10MB
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB
 });
 
 const uploadVendorProducts = multer({
   storage: vendorProductStorage,
   fileFilter: imageFileFilter,
-  limits: { fileSize: 15 * 1024 * 1024 } // 5MB
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB
 });
 
 const uploadPaymentProof = multer({
   storage: paymentProofStorage,
   fileFilter: paymentProofFileFilter,
-  limits: { fileSize: 15 * 1024 * 1024 } // 5MB
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB
+});
+
+// Add expense receipt upload
+const uploadExpenseReceipt = multer({
+  storage: expenseReceiptStorage,
+  fileFilter: expenseReceiptFileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB
 });
 
 // ========== CLOUDINARY PROCESSING ==========
@@ -126,6 +143,8 @@ const processFileForCloudinary = async (req, folder = 'general') => {
         cloudinaryFolder = 'holsapartments/properties';
       } else if (req.file.fieldname === 'proof') {
         cloudinaryFolder = 'holsapartments/payments';
+      } else if (req.file.fieldname === 'receipt') {
+        cloudinaryFolder = 'holsapartments/expenses';
       }
 
       // Upload to Cloudinary
@@ -157,9 +176,10 @@ const processFileForCloudinary = async (req, folder = 'general') => {
   }
 
   // Process multiple files
-  if (req.files) {
-    req.files = req.files.flat();
-    for (const file of req.files) {
+  if (req.files && req.files.length > 0) {
+    const filesArray = Array.isArray(req.files) ? req.files : Object.values(req.files).flat();
+    
+    for (const file of filesArray) {
       try {
         const result = await uploadToCloudinary(file.buffer, {
           folder: 'holsapartments/properties',
@@ -206,6 +226,8 @@ const handleVercelUpload = async (req, res, next) => {
         fakePath = `public/uploads/properties/property-${uniqueSuffix}${ext}`;
       } else if (req.file.fieldname === 'proof') {
         fakePath = `uploads/payments/payment-${uniqueSuffix}${ext}`;
+      } else if (req.file.fieldname === 'receipt') {
+        fakePath = `public/uploads/expenses/expense-${uniqueSuffix}${ext}`;
       } else {
         fakePath = `uploads/general/file-${uniqueSuffix}${ext}`;
       }
@@ -217,9 +239,9 @@ const handleVercelUpload = async (req, res, next) => {
   
   // Process multiple files
   if (process.env.VERCEL && req.files) {
-    req.files = req.files.flat();
+    const filesArray = Array.isArray(req.files) ? req.files : Object.values(req.files).flat();
     
-    for (const file of req.files) {
+    for (const file of filesArray) {
       file.isVercel = true;
       
       if (isCloudinaryConfigured()) {
@@ -255,8 +277,9 @@ const handleVercelUpload = async (req, res, next) => {
 const handleUploadErrors = (err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     let message = 'File upload error';
-    if (err.code === 'LIMIT_FILE_SIZE') message = 'File too large';
+    if (err.code === 'LIMIT_FILE_SIZE') message = 'File too large (max 5MB)';
     if (err.code === 'LIMIT_FILE_COUNT') message = 'Too many files';
+    if (err.code === 'LIMIT_UNEXPECTED_FILE') message = 'Unexpected file field';
     return res.status(400).json({ message });
   } else if (err) {
     return res.status(400).json({ message: err.message });
@@ -266,7 +289,16 @@ const handleUploadErrors = (err, req, res, next) => {
 
 const handlePaymentProofErrors = (err, req, res, next) => {
   if (err instanceof multer.MulterError) {
-    return res.status(400).json({ message: 'Payment proof upload error' });
+    return res.status(400).json({ message: 'Payment proof upload error: ' + err.message });
+  } else if (err) {
+    return res.status(400).json({ message: err.message });
+  }
+  next();
+};
+
+const handleExpenseReceiptErrors = (err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    return res.status(400).json({ message: 'Receipt upload error: ' + err.message });
   } else if (err) {
     return res.status(400).json({ message: err.message });
   }
@@ -292,13 +324,381 @@ module.exports = {
   uploadProperties,
   uploadVendorProducts,
   uploadPaymentProof,
+  uploadExpenseReceipt, // Add this
   handleUploadErrors,
   handlePaymentProofErrors,
+  handleExpenseReceiptErrors, // Add this
   handleVercelUpload,
   cloudinaryMiddleware,
   processFileForCloudinary,
-  isCloudinaryConfigured
+  isCloudinaryConfigured,
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// // middleware/uploadMiddleware.js - COMPLETE FIXED VERSION
+// const multer = require('multer');
+// const path = require('path');
+// const fs = require('fs');
+// const { 
+//   uploadToCloudinary, 
+//   uploadToCloudinaryFromFile,
+//   isCloudinaryConfigured 
+// } = require('../utils/cloudStorage');
+
+// // ========== VERCEL-SAFE DIRECTORY CREATION ==========
+// const createUploadDirs = () => {
+//   if (process.env.VERCEL) {
+//     console.log('⚠️ Skipping directory creation on Vercel (serverless)');
+//     return;
+//   }
+  
+//   const dirs = [
+//     'public/uploads/users',
+//     'public/uploads/properties',
+//     'public/uploads/vendor-products',
+//     'uploads/payments'
+//   ];
+  
+//   dirs.forEach(dir => {
+//     if (!fs.existsSync(dir)) {
+//       fs.mkdirSync(dir, { recursive: true });
+//       console.log(`✅ Created directory: ${dir}`);
+//     }
+//   });
+// };
+
+// createUploadDirs();
+
+// // ========== STORAGE CONFIGURATION ==========
+// const getStorage = (basePath, prefix = 'file') => {
+//   // Use Cloudinary if configured, otherwise use disk/memory storage
+//   if (isCloudinaryConfigured()) {
+//     console.log('☁️ Using Cloudinary storage');
+//     return multer.memoryStorage(); // Store files in memory for Cloudinary upload
+//   } else if (process.env.VERCEL) {
+//     console.log('📦 Using memory storage for Vercel');
+//     return multer.memoryStorage();
+//   }
+  
+//   console.log('💾 Using disk storage');
+//   return multer.diskStorage({
+//     destination: (req, file, cb) => {
+//       cb(null, basePath);
+//     },
+//     filename: (req, file, cb) => {
+//       const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+//       const ext = path.extname(file.originalname);
+//       const filename = `${prefix}-${uniqueSuffix}${ext}`;
+//       cb(null, filename);
+//     }
+//   });
+// };
+
+// // Configure storages based on your routes
+// const userStorage = getStorage('public/uploads/users', 'user');
+// const propertyStorage = getStorage('public/uploads/properties', 'property');
+// const vendorProductStorage = getStorage('public/uploads/vendor-products', 'vendor-product');
+// const paymentProofStorage = getStorage('uploads/payments', 'payment');
+
+// // ========== FILE FILTERS ==========
+// const imageFileFilter = (req, file, cb) => {
+//   if (file.mimetype.startsWith('image/')) {
+//     cb(null, true);
+//   } else {
+//     cb(new Error('Only image files are allowed!'), false);
+//   }
+// };
+
+// const paymentProofFileFilter = (req, file, cb) => {
+//   const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+//   if (allowedTypes.includes(file.mimetype)) {
+//     cb(null, true);
+//   } else {
+//     cb(new Error('Only JPG, PNG, and PDF files are allowed'), false);
+//   }
+// };
+
+// // ========== MULTER INSTANCES ==========
+// const uploadUserProfile = multer({
+//   storage: userStorage,
+//   fileFilter: imageFileFilter,
+//   limits: { fileSize: 15 * 1024 * 1024 } // 5MB
+// });
+
+// const uploadProperties = multer({
+//   storage: propertyStorage,
+//   fileFilter: imageFileFilter,
+//   limits: { fileSize: 15 * 1024 * 1024 } // 10MB
+// });
+
+// const uploadVendorProducts = multer({
+//   storage: vendorProductStorage,
+//   fileFilter: imageFileFilter,
+//   limits: { fileSize: 15 * 1024 * 1024 } // 5MB
+// });
+
+// const uploadPaymentProof = multer({
+//   storage: paymentProofStorage,
+//   fileFilter: paymentProofFileFilter,
+//   limits: { fileSize: 15 * 1024 * 1024 } // 5MB
+// });
+
+// // ========== CLOUDINARY PROCESSING ==========
+// const processFileForCloudinary = async (req, folder = 'general') => {
+//   if (!isCloudinaryConfigured()) {
+//     return; // Skip if Cloudinary not configured
+//   }
+
+//   // Process single file
+//   if (req.file) {
+//     console.log('☁️ Processing file for Cloudinary:', req.file.originalname);
+    
+//     try {
+//       // Determine folder based on file type/context
+//       let cloudinaryFolder = `holsapartments/${folder}`;
+      
+//       if (req.file.fieldname === 'profileImage') {
+//         cloudinaryFolder = 'holsapartments/users';
+//       } else if (req.file.fieldname === 'images') {
+//         cloudinaryFolder = 'holsapartments/properties';
+//       } else if (req.file.fieldname === 'proof') {
+//         cloudinaryFolder = 'holsapartments/payments';
+//       }
+
+//       // Upload to Cloudinary
+//       const result = await uploadToCloudinary(req.file.buffer, {
+//         folder: cloudinaryFolder,
+//         public_id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+//         mimeType: req.file.mimetype,
+//         resource_type: req.file.mimetype.startsWith('image/') ? 'image' : 'raw'
+//       });
+
+//       // Store Cloudinary info in the file object
+//       req.file.cloudinary = {
+//         url: result.secure_url,
+//         public_id: result.public_id,
+//         format: result.format,
+//         version: result.version,
+//         signature: result.signature
+//       };
+
+//       // For backward compatibility, keep the path field
+//       req.file.path = result.secure_url;
+//       req.file.filename = result.public_id.split('/').pop();
+
+//       console.log('✅ File uploaded to Cloudinary:', result.secure_url);
+//     } catch (error) {
+//       console.error('❌ Cloudinary upload failed:', error);
+//       // Keep local file info as fallback
+//     }
+//   }
+
+//   // Process multiple files
+//   if (req.files) {
+//     req.files = req.files.flat();
+//     for (const file of req.files) {
+//       try {
+//         const result = await uploadToCloudinary(file.buffer, {
+//           folder: 'holsapartments/properties',
+//           public_id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+//           mimeType: file.mimetype
+//         });
+
+//         file.cloudinary = {
+//           url: result.secure_url,
+//           public_id: result.public_id
+//         };
+//         file.path = result.secure_url;
+//         file.filename = result.public_id.split('/').pop();
+//       } catch (error) {
+//         console.error('Cloudinary upload failed for:', file.originalname, error);
+//       }
+//     }
+//   }
+// };
+
+// // ========== VERCEL FILE PROCESSOR ==========
+// const handleVercelUpload = async (req, res, next) => {
+//   if (process.env.VERCEL && req.file) {
+//     console.log('📁 Vercel file received:', {
+//       originalname: req.file.originalname,
+//       mimetype: req.file.mimetype,
+//       size: req.file.size
+//     });
+    
+//     req.file.isVercel = true;
+    
+//     // If Cloudinary is configured, upload to Cloudinary
+//     if (isCloudinaryConfigured()) {
+//       await processFileForCloudinary(req);
+//     } else {
+//       // Fallback: create fake path for Vercel
+//       const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+//       const ext = path.extname(req.file.originalname);
+      
+//       let fakePath = '';
+//       if (req.file.fieldname === 'profileImage') {
+//         fakePath = `public/uploads/users/user-${uniqueSuffix}${ext}`;
+//       } else if (req.file.fieldname === 'images') {
+//         fakePath = `public/uploads/properties/property-${uniqueSuffix}${ext}`;
+//       } else if (req.file.fieldname === 'proof') {
+//         fakePath = `uploads/payments/payment-${uniqueSuffix}${ext}`;
+//       } else {
+//         fakePath = `uploads/general/file-${uniqueSuffix}${ext}`;
+//       }
+      
+//       req.file.path = fakePath;
+//       req.file.filename = path.basename(fakePath);
+//     }
+//   }
+  
+//   // Process multiple files
+//   if (process.env.VERCEL && req.files) {
+//     req.files = req.files.flat();
+    
+//     for (const file of req.files) {
+//       file.isVercel = true;
+      
+//       if (isCloudinaryConfigured()) {
+//         try {
+//           const result = await uploadToCloudinary(file.buffer, {
+//             folder: 'holsapartments/properties',
+//             public_id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+//             mimeType: file.mimetype
+//           });
+
+//           file.cloudinary = {
+//             url: result.secure_url,
+//             public_id: result.public_id
+//           };
+//           file.path = result.secure_url;
+//           file.filename = result.public_id.split('/').pop();
+//         } catch (error) {
+//           console.error('Cloudinary upload failed:', error);
+//         }
+//       } else {
+//         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+//         const ext = path.extname(file.originalname);
+//         file.path = `public/uploads/properties/property-${uniqueSuffix}${ext}`;
+//         file.filename = path.basename(file.path);
+//       }
+//     }
+//   }
+  
+//   next();
+// };
+
+// // ========== ERROR HANDLING MIDDLEWARE ==========
+// const handleUploadErrors = (err, req, res, next) => {
+//   if (err instanceof multer.MulterError) {
+//     let message = 'File upload error';
+//     if (err.code === 'LIMIT_FILE_SIZE') message = 'File too large';
+//     if (err.code === 'LIMIT_FILE_COUNT') message = 'Too many files';
+//     return res.status(400).json({ message });
+//   } else if (err) {
+//     return res.status(400).json({ message: err.message });
+//   }
+//   next();
+// };
+
+// const handlePaymentProofErrors = (err, req, res, next) => {
+//   if (err instanceof multer.MulterError) {
+//     return res.status(400).json({ message: 'Payment proof upload error' });
+//   } else if (err) {
+//     return res.status(400).json({ message: err.message });
+//   }
+//   next();
+// };
+
+// // ========== CLOUDINARY MIDDLEWARE ==========
+// const cloudinaryMiddleware = async (req, res, next) => {
+//   try {
+//     // Only process if Cloudinary is configured and we have files
+//     if (isCloudinaryConfigured() && (req.file || req.files)) {
+//       await processFileForCloudinary(req);
+//     }
+//     next();
+//   } catch (error) {
+//     console.error('Cloudinary middleware error:', error);
+//     next(error);
+//   }
+// };
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+// module.exports = {
+//   uploadUserProfile,
+//   uploadProperties,
+//   uploadVendorProducts,
+//   uploadPaymentProof,
+//   handleUploadErrors,
+//   handlePaymentProofErrors,
+//   handleVercelUpload,
+//   cloudinaryMiddleware,
+//   processFileForCloudinary,
+//   isCloudinaryConfigured
+// };
 
 
 
