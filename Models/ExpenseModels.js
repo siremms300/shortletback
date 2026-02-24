@@ -282,15 +282,38 @@ const expenseVendorSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Pre-save hook to generate vendor number
+// FIXED: Pre-save hook to generate vendor number with proper error handling
 expenseVendorSchema.pre('save', async function(next) {
-  if (this.isNew && !this.vendorNumber) {
+  if (this.isNew) {
     try {
+      // Check if vendorNumber is already set (for testing/mock data)
+      if (this.vendorNumber) {
+        return next();
+      }
+      
+      // Count existing documents
       const count = await mongoose.model('ExpenseVendor').countDocuments();
+      // Generate vendor number with padding
       this.vendorNumber = `VEN-${String(count + 1).padStart(4, '0')}`;
+      console.log(`Generated vendor number: ${this.vendorNumber}`);
+      next();
     } catch (error) {
+      console.error('Error generating vendor number:', error);
+      // Fallback: use timestamp-based number
       this.vendorNumber = `VEN-${Date.now()}`;
+      next();
     }
+  } else {
+    next();
+  }
+});
+
+// Also add a pre-validate hook to ensure vendorNumber exists
+expenseVendorSchema.pre('validate', function(next) {
+  if (!this.vendorNumber && this.isNew) {
+    // If we get here, something went wrong with the pre-save hook
+    this.vendorNumber = `VEN-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+    console.log('Emergency vendor number generated:', this.vendorNumber);
   }
   next();
 });
@@ -304,5 +327,5 @@ expenseVendorSchema.index({ preferred: 1 });
 module.exports = {
   Expense: mongoose.model("Expense", expenseSchema),
   Budget: mongoose.model("Budget", budgetSchema),
-  ExpenseVendor: mongoose.model("ExpenseVendor", expenseVendorSchema) // Renamed from Vendor
+  ExpenseVendor: mongoose.model("ExpenseVendor", expenseVendorSchema)
 };

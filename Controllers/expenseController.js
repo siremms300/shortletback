@@ -6,128 +6,233 @@ const expenseController = {
   // ========== EXPENSE METHODS ==========
 
   // Create new expense
-  createExpense: async (req, res) => {
-    try {
-      const {
-        date,
-        category,
-        description,
-        amount,
-        propertyId,
-        unit,
-        paidTo,
-        paymentMethod,
-        recurring,
-        recurrence,
-        tags,
-        notes,
-        budgetCategory,
-        taxDeductible
-      } = req.body;
+  // createExpense: async (req, res) => {
+  //   try {
+  //     const {
+  //       date,
+  //       category,
+  //       description,
+  //       amount,
+  //       propertyId,
+  //       unit,
+  //       paidTo,
+  //       paymentMethod,
+  //       recurring,
+  //       recurrence,
+  //       tags,
+  //       notes,
+  //       budgetCategory,
+  //       taxDeductible
+  //     } = req.body;
 
-      console.log('Creating expense:', req.body);
+  //     console.log('Creating expense:', req.body);
 
-      // Validate required fields
-      if (!category || !description || !amount || !propertyId || !paidTo || !paymentMethod) {
-        return res.status(400).json({
-          success: false,
-          message: "Category, description, amount, property, paidTo, and paymentMethod are required"
-        });
-      }
+  //     // Validate required fields
+  //     if (!category || !description || !amount || !propertyId || !paidTo || !paymentMethod) {
+  //       return res.status(400).json({
+  //         success: false,
+  //         message: "Category, description, amount, property, paidTo, and paymentMethod are required"
+  //       });
+  //     }
 
-      // Check if property exists
-      const property = await Property.findById(propertyId);
-      if (!property) {
-        return res.status(404).json({
-          success: false,
-          message: "Property not found"
-        });
-      }
+  //     // Check if property exists
+  //     const property = await Property.findById(propertyId);
+  //     if (!property) {
+  //       return res.status(404).json({
+  //         success: false,
+  //         message: "Property not found"
+  //       });
+  //     }
 
-      // Handle receipt upload if any
-      let receiptUrl = '';
-      let receiptFileId = '';
+  //     // Handle receipt upload if any
+  //     let receiptUrl = '';
+  //     let receiptFileId = '';
       
-      if (req.file) {
-        // If using Cloudinary
-        if (req.file.cloudinary) {
-          receiptUrl = req.file.cloudinary.url;
-          receiptFileId = req.file.cloudinary.public_id;
-        } else {
-          // Local file storage
-          receiptUrl = `/uploads/expenses/${req.file.filename}`;
-        }
-      }
+  //     if (req.file) {
+  //       // If using Cloudinary
+  //       if (req.file.cloudinary) {
+  //         receiptUrl = req.file.cloudinary.url;
+  //         receiptFileId = req.file.cloudinary.public_id;
+  //       } else {
+  //         // Local file storage
+  //         receiptUrl = `/uploads/expenses/${req.file.filename}`;
+  //       }
+  //     }
 
-      const expense = new Expense({
-        date: date || new Date(),
-        category,
-        description,
-        amount: parseFloat(amount),
-        property: propertyId,
-        unit: unit || '',
-        paidTo,
-        paymentMethod,
-        receipt: receiptUrl,
-        receiptFileId,
-        recurring: recurring || false,
-        recurrence: recurring ? recurrence : undefined,
-        tags: tags || [],
-        notes: notes || '',
-        budgetCategory: budgetCategory || '',
-        taxDeductible: taxDeductible !== undefined ? taxDeductible : true,
-        createdBy: req.user.id
-      });
+  //     const expense = new Expense({
+  //       date: date || new Date(),
+  //       category,
+  //       description,
+  //       amount: parseFloat(amount),
+  //       property: propertyId,
+  //       unit: unit || '',
+  //       paidTo,
+  //       paymentMethod,
+  //       receipt: receiptUrl,
+  //       receiptFileId,
+  //       recurring: recurring || false,
+  //       recurrence: recurring ? recurrence : undefined,
+  //       tags: tags || [],
+  //       notes: notes || '',
+  //       budgetCategory: budgetCategory || '',
+  //       taxDeductible: taxDeductible !== undefined ? taxDeductible : true,
+  //       createdBy: req.user.id
+  //     });
 
-      // If recurring, calculate next recurrence date
-      if (expense.recurring && expense.recurrence) {
-        const nextDate = new Date(expense.date);
-        switch (expense.recurrence) {
-          case 'weekly':
-            nextDate.setDate(nextDate.getDate() + 7);
-            break;
-          case 'monthly':
-            nextDate.setMonth(nextDate.getMonth() + 1);
-            break;
-          case 'quarterly':
-            nextDate.setMonth(nextDate.getMonth() + 3);
-            break;
-          case 'yearly':
-            nextDate.setFullYear(nextDate.getFullYear() + 1);
-            break;
-        }
-        expense.nextRecurrenceDate = nextDate;
-      }
+  //     // If recurring, calculate next recurrence date
+  //     if (expense.recurring && expense.recurrence) {
+  //       const nextDate = new Date(expense.date);
+  //       switch (expense.recurrence) {
+  //         case 'weekly':
+  //           nextDate.setDate(nextDate.getDate() + 7);
+  //           break;
+  //         case 'monthly':
+  //           nextDate.setMonth(nextDate.getMonth() + 1);
+  //           break;
+  //         case 'quarterly':
+  //           nextDate.setMonth(nextDate.getMonth() + 3);
+  //           break;
+  //         case 'yearly':
+  //           nextDate.setFullYear(nextDate.getFullYear() + 1);
+  //           break;
+  //       }
+  //       expense.nextRecurrenceDate = nextDate;
+  //     }
 
-      await expense.save();
+  //     await expense.save();
 
-      // Populate related fields
-      await expense.populate('property', 'title location');
-      await expense.populate('createdBy', 'firstName lastName');
-      if (expense.approvedBy) {
-        await expense.populate('approvedBy', 'firstName lastName');
-      }
+  //     // Populate related fields
+  //     await expense.populate('property', 'title location');
+  //     await expense.populate('createdBy', 'firstName lastName');
+  //     if (expense.approvedBy) {
+  //       await expense.populate('approvedBy', 'firstName lastName');
+  //     }
 
-      // Update budget spent amount if budget category is specified
-      if (expense.budgetCategory && expense.status === 'approved') {
-        await updateBudgetSpent(expense.budgetCategory, expense.amount);
-      }
+  //     // Update budget spent amount if budget category is specified
+  //     if (expense.budgetCategory && expense.status === 'approved') {
+  //       await updateBudgetSpent(expense.budgetCategory, expense.amount);
+  //     }
 
-      res.status(201).json({
-        success: true,
-        message: "Expense created successfully",
-        expense
-      });
+  //     res.status(201).json({
+  //       success: true,
+  //       message: "Expense created successfully",
+  //       expense
+  //     });
 
-    } catch (error) {
-      console.error('Create expense error:', error);
-      res.status(500).json({
+  //   } catch (error) {
+  //     console.error('Create expense error:', error);
+  //     res.status(500).json({
+  //       success: false,
+  //       message: "Failed to create expense",
+  //       error: error.message
+  //     });
+  //   }
+  // },
+
+
+
+
+// Create vendor
+createVendor: async (req, res) => {
+  try {
+    const {
+      name,
+      category,
+      contactPerson,
+      phone,
+      email,
+      address,
+      taxId,
+      paymentTerms,
+      preferred,
+      rating,
+      notes
+    } = req.body;
+
+    console.log('Creating vendor with data:', req.body);
+
+    // Validate required fields
+    if (!name || !category || !phone || !email) {
+      return res.status(400).json({
         success: false,
-        message: "Failed to create expense",
-        error: error.message
+        message: "Name, category, phone, and email are required"
       });
     }
-  },
+
+    // Check if vendor already exists
+    const existingVendor = await ExpenseVendor.findOne({
+      $or: [
+        { email: email.toLowerCase() },
+        { name: { $regex: new RegExp(`^${name}$`, 'i') } }
+      ]
+    });
+
+    if (existingVendor) {
+      return res.status(400).json({
+        success: false,
+        message: "Vendor with this name or email already exists"
+      });
+    }
+
+    // Create vendor WITHOUT setting vendorNumber - let the pre-save hook handle it
+    const vendorData = {
+      name,
+      category,
+      contactPerson: contactPerson || {},
+      phone,
+      email: email.toLowerCase(),
+      address: address || {},
+      taxId: taxId || '',
+      paymentTerms: paymentTerms || 'net30',
+      preferred: preferred || false,
+      rating: rating || 3,
+      notes: notes || '',
+      createdBy: req.user.id
+    };
+
+    console.log('Vendor data before save:', vendorData);
+
+    const vendor = new ExpenseVendor(vendorData);
+    await vendor.save();
+    
+    console.log('Vendor saved successfully:', vendor);
+
+    await vendor.populate('createdBy', 'firstName lastName');
+
+    res.status(201).json({
+      success: true,
+      message: "Vendor created successfully",
+      vendor
+    });
+
+  } catch (error) {
+    console.error('Create vendor error:', error);
+    
+    // Check for validation errors
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(err => ({
+        field: err.path,
+        message: err.message
+      }));
+      return res.status(400).json({
+        success: false,
+        message: "Validation failed",
+        errors
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      message: "Failed to create vendor",
+      error: error.message
+    });
+  }
+},
+
+
+
+
+
 
   // Get all expenses
   getAllExpenses: async (req, res) => {
