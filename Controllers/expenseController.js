@@ -762,39 +762,39 @@ createBudget: async (req, res) => {
 
 
   // Get all budgets
-  getAllBudgets: async (req, res) => {
-    try {
-      const {
-        period,
-        fiscalYear,
-        isActive
-      } = req.query;
+  // getAllBudgets: async (req, res) => {
+  //   try {
+  //     const {
+  //       period,
+  //       fiscalYear,
+  //       isActive
+  //     } = req.query;
 
-      const query = {};
+  //     const query = {};
 
-      if (period && period !== 'all') query.period = period;
-      if (fiscalYear) query.fiscalYear = parseInt(fiscalYear);
-      if (isActive !== undefined) query.isActive = isActive === 'true';
+  //     if (period && period !== 'all') query.period = period;
+  //     if (fiscalYear) query.fiscalYear = parseInt(fiscalYear);
+  //     if (isActive !== undefined) query.isActive = isActive === 'true';
 
-      const budgets = await Budget.find(query)
-        .populate('createdBy', 'firstName lastName')
-        .populate('updatedBy', 'firstName lastName')
-        .sort({ category: 1 });
+  //     const budgets = await Budget.find(query)
+  //       .populate('createdBy', 'firstName lastName')
+  //       .populate('updatedBy', 'firstName lastName')
+  //       .sort({ category: 1 });
 
-      res.status(200).json({
-        success: true,
-        budgets
-      });
+  //     res.status(200).json({
+  //       success: true,
+  //       budgets
+  //     });
 
-    } catch (error) {
-      console.error('Get budgets error:', error);
-      res.status(500).json({
-        success: false,
-        message: "Failed to fetch budgets",
-        error: error.message
-      });
-    }
-  },
+  //   } catch (error) {
+  //     console.error('Get budgets error:', error);
+  //     res.status(500).json({
+  //       success: false,
+  //       message: "Failed to fetch budgets",
+  //       error: error.message
+  //     });
+  //   }
+  // },
 
   // Get budget by ID
   getBudgetById: async (req, res) => {
@@ -1020,54 +1020,123 @@ createBudget: async (req, res) => {
   },
 
   // Get all vendors
-  getAllVendors: async (req, res) => {
-    try {
-      const {
-        category,
-        preferred,
-        search,
-        page = 1,
-        limit = 50
-      } = req.query;
+  // getAllVendors: async (req, res) => {
+  //   try {
+  //     const {
+  //       category,
+  //       preferred,
+  //       search,
+  //       page = 1,
+  //       limit = 50
+  //     } = req.query;
 
-      const query = { isActive: true };
+  //     const query = { isActive: true };
 
-      if (category && category !== 'all') query.category = category;
-      if (preferred !== undefined) query.preferred = preferred === 'true';
+  //     if (category && category !== 'all') query.category = category;
+  //     if (preferred !== undefined) query.preferred = preferred === 'true';
 
-      if (search) {
-        query.$or = [
-          { name: { $regex: search, $options: 'i' } },
-          { email: { $regex: search, $options: 'i' } },
-          { 'contactPerson.name': { $regex: search, $options: 'i' } }
-        ];
-      }
+  //     if (search) {
+  //       query.$or = [
+  //         { name: { $regex: search, $options: 'i' } },
+  //         { email: { $regex: search, $options: 'i' } },
+  //         { 'contactPerson.name': { $regex: search, $options: 'i' } }
+  //       ];
+  //     }
 
-      const vendors = await ExpenseVendor.find(query)
-        .populate('createdBy', 'firstName lastName')
-        .sort({ preferred: -1, name: 1 })
-        .limit(limit * 1)
-        .skip((page - 1) * limit);
+  //     const vendors = await ExpenseVendor.find(query)
+  //       .populate('createdBy', 'firstName lastName')
+  //       .sort({ preferred: -1, name: 1 })
+  //       .limit(limit * 1)
+  //       .skip((page - 1) * limit);
 
-      const total = await ExpenseVendor.countDocuments(query);
+  //     const total = await ExpenseVendor.countDocuments(query);
 
-      res.status(200).json({
-        success: true,
-        vendors,
-        totalPages: Math.ceil(total / limit),
-        currentPage: page,
-        total
-      });
+  //     res.status(200).json({
+  //       success: true,
+  //       vendors,
+  //       totalPages: Math.ceil(total / limit),
+  //       currentPage: page,
+  //       total
+  //     });
 
-    } catch (error) {
-      console.error('Get vendors error:', error);
-      res.status(500).json({
-        success: false,
-        message: "Failed to fetch vendors",
-        error: error.message
-      });
-    }
-  },
+  //   } catch (error) {
+  //     console.error('Get vendors error:', error);
+  //     res.status(500).json({
+  //       success: false,
+  //       message: "Failed to fetch vendors",
+  //       error: error.message
+  //     });
+  //   }
+  // },
+
+
+
+
+
+// Get all budgets - SIMPLIFIED VERSION
+getAllBudgets: async (req, res) => {
+  try {
+    console.log('========== GET ALL BUDGETS ==========');
+    
+    // Try to get all budgets without any filters first
+    const budgets = await Budget.find({})
+      .populate('createdBy', 'firstName lastName')
+      .sort({ category: 1 });
+
+    console.log(`Found ${budgets.length} budgets`);
+    console.log('Budgets:', budgets);
+
+    res.status(200).json({
+      success: true,
+      budgets
+    });
+
+  } catch (error) {
+    console.error('========== GET BUDGETS ERROR ==========');
+    console.error('Error:', error);
+    
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch budgets",
+      error: error.message
+    });
+  }
+},
+
+// Get all vendors - SIMPLIFIED VERSION
+getAllVendors: async (req, res) => {
+  try {
+    console.log('========== GET ALL VENDORS ==========');
+    
+    // Try to get all vendors without any filters first
+    const vendors = await ExpenseVendor.find({})
+      .populate('createdBy', 'firstName lastName')
+      .sort({ name: 1 });
+
+    console.log(`Found ${vendors.length} vendors`);
+    console.log('Vendors:', vendors);
+
+    res.status(200).json({
+      success: true,
+      vendors
+    });
+
+  } catch (error) {
+    console.error('========== GET VENDORS ERROR ==========');
+    console.error('Error:', error);
+    
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch vendors",
+      error: error.message
+    });
+  }
+},
+
+
+
+
+
 
   // Get vendor by ID
   getVendorById: async (req, res) => {
