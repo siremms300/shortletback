@@ -1073,27 +1073,90 @@ createBudget: async (req, res) => {
 
 
 
-// Get all budgets - SIMPLIFIED VERSION
+// // Get all budgets - SIMPLIFIED VERSION
+// getAllBudgets: async (req, res) => {
+//   try {
+//     console.log('========== GET ALL BUDGETS ==========');
+    
+//     // Try to get all budgets without any filters first
+//     const budgets = await Budget.find({})
+//       .populate('createdBy', 'firstName lastName')
+//       .sort({ category: 1 });
+
+//     console.log(`Found ${budgets.length} budgets`);
+//     console.log('Budgets:', budgets);
+
+//     res.status(200).json({
+//       success: true,
+//       budgets
+//     });
+
+//   } catch (error) {
+//     console.error('========== GET BUDGETS ERROR ==========');
+//     console.error('Error:', error);
+    
+//     res.status(500).json({
+//       success: false,
+//       message: "Failed to fetch budgets",
+//       error: error.message
+//     });
+//   }
+// },
+
+// // Get all vendors - SIMPLIFIED VERSION
+// getAllVendors: async (req, res) => {
+//   try {
+//     console.log('========== GET ALL VENDORS ==========');
+    
+//     // Try to get all vendors without any filters first
+//     const vendors = await ExpenseVendor.find({})
+//       .populate('createdBy', 'firstName lastName')
+//       .sort({ name: 1 });
+
+//     console.log(`Found ${vendors.length} vendors`);
+//     console.log('Vendors:', vendors);
+
+//     res.status(200).json({
+//       success: true,
+//       vendors
+//     });
+
+//   } catch (error) {
+//     console.error('========== GET VENDORS ERROR ==========');
+//     console.error('Error:', error);
+    
+//     res.status(500).json({
+//       success: false,
+//       message: "Failed to fetch vendors",
+//       error: error.message
+//     });
+//   }
+// },
+
+
+
+// Get all budgets - SIMPLIFIED FOR DEBUGGING
 getAllBudgets: async (req, res) => {
   try {
-    console.log('========== GET ALL BUDGETS ==========');
+    console.log('========== GET ALL BUDGETS (SIMPLIFIED) ==========');
     
-    // Try to get all budgets without any filters first
-    const budgets = await Budget.find({})
-      .populate('createdBy', 'firstName lastName')
-      .sort({ category: 1 });
-
+    // Try without population first
+    const budgets = await Budget.find({});
+    
     console.log(`Found ${budgets.length} budgets`);
-    console.log('Budgets:', budgets);
+    console.log('Raw budgets:', JSON.stringify(budgets, null, 2));
 
+    // Return with success flag
     res.status(200).json({
       success: true,
-      budgets
+      budgets: budgets
     });
 
   } catch (error) {
     console.error('========== GET BUDGETS ERROR ==========');
-    console.error('Error:', error);
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
     
     res.status(500).json({
       success: false,
@@ -1103,27 +1166,27 @@ getAllBudgets: async (req, res) => {
   }
 },
 
-// Get all vendors - SIMPLIFIED VERSION
+// Get all vendors - SIMPLIFIED FOR DEBUGGING
 getAllVendors: async (req, res) => {
   try {
-    console.log('========== GET ALL VENDORS ==========');
+    console.log('========== GET ALL VENDORS (SIMPLIFIED) ==========');
     
-    // Try to get all vendors without any filters first
-    const vendors = await ExpenseVendor.find({})
-      .populate('createdBy', 'firstName lastName')
-      .sort({ name: 1 });
-
+    // Try without population first
+    const vendors = await ExpenseVendor.find({});
+    
     console.log(`Found ${vendors.length} vendors`);
-    console.log('Vendors:', vendors);
+    console.log('Raw vendors:', JSON.stringify(vendors, null, 2));
 
     res.status(200).json({
       success: true,
-      vendors
+      vendors: vendors
     });
 
   } catch (error) {
     console.error('========== GET VENDORS ERROR ==========');
-    console.error('Error:', error);
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
     
     res.status(500).json({
       success: false,
@@ -1132,6 +1195,8 @@ getAllVendors: async (req, res) => {
     });
   }
 },
+
+
 
 
 
@@ -1631,6 +1696,33 @@ async function calculateExpenseStats(query) {
     return {};
   }
 }
+
+
+
+// Add this temporary endpoint to check data
+checkData: async (req, res) => {
+  try {
+    const budgetCount = await Budget.countDocuments();
+    const vendorCount = await ExpenseVendor.countDocuments();
+    
+    const sampleBudget = await Budget.findOne();
+    const sampleVendor = await ExpenseVendor.findOne();
+    
+    res.json({
+      budgetCount,
+      vendorCount,
+      sampleBudget,
+      sampleVendor
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+}
+
+
+
+
+
 
 module.exports = expenseController;
 

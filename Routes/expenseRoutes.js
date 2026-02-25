@@ -46,4 +46,8 @@ router.delete("/vendors/:id", expenseController.deleteVendor);
 // ========== UTILITY ROUTES ==========
 router.post("/recurring/process", expenseController.processRecurringExpenses);
 
+// DEBUG 
+// Temporary debug route
+router.get("/debug/check-data", expenseController.checkData);
+
 module.exports = router;
