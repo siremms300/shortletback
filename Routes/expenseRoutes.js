@@ -49,5 +49,32 @@ router.post("/recurring/process", expenseController.processRecurringExpenses);
 // DEBUG 
 // Temporary debug route
 // router.get("/debug/check-data", expenseController.checkData);
+// router.get("/debug/check-data", expenseController.checkData);
 
-module.exports = router;
+
+// TEMPORARY DEBUG ROUTE - Add this before module.exports
+router.get("/debug/check-data", async (req, res) => {
+  try {
+    const budgets = await Budget.find({});
+    const vendors = await ExpenseVendor.find({});
+    const expenses = await Expense.find({});
+    
+    res.json({
+      success: true,
+      counts: {
+        budgets: budgets.length,
+        vendors: vendors.length,
+        expenses: expenses.length
+      },
+      data: {
+        budgets,
+        vendors,
+        expenses
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+module.exports = router; 
