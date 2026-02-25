@@ -1700,24 +1700,24 @@ async function calculateExpenseStats(query) {
 
 
 // Add this temporary endpoint to check data
-checkData: async (req, res) => {
-  try {
-    const budgetCount = await Budget.countDocuments();
-    const vendorCount = await ExpenseVendor.countDocuments();
+// checkData: async (req, res) => {
+//   try {
+//     const budgetCount = await Budget.countDocuments();
+//     const vendorCount = await ExpenseVendor.countDocuments();
     
-    const sampleBudget = await Budget.findOne();
-    const sampleVendor = await ExpenseVendor.findOne();
+//     const sampleBudget = await Budget.findOne();
+//     const sampleVendor = await ExpenseVendor.findOne();
     
-    res.json({
-      budgetCount,
-      vendorCount,
-      sampleBudget,
-      sampleVendor
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-}
+//     res.json({
+//       budgetCount,
+//       vendorCount,
+//       sampleBudget,
+//       sampleVendor
+//     });
+//   } catch (error) {
+//     res.status(500).json({ error: error.message });
+//   }
+// }
 
 
 

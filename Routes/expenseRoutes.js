@@ -48,6 +48,6 @@ router.post("/recurring/process", expenseController.processRecurringExpenses);
 
 // DEBUG 
 // Temporary debug route
-router.get("/debug/check-data", expenseController.checkData);
+// router.get("/debug/check-data", expenseController.checkData);
 
 module.exports = router;
