@@ -19,6 +19,7 @@ const maintenanceRoutes = require("./Routes/maintenanceRoute");
 const staffRoutes = require("./Routes/staffRoute");
 const utilityRoutes = require("./Routes/utilityRoutes"); 
 const expenseRoutes = require("./Routes/expenseRoutes");
+const affiliateRoutes = require("./Routes/affiliateRoutes");
  
 
 
@@ -179,6 +180,7 @@ app.use("/maintenance", maintenanceRoutes);
 app.use("/staff", staffRoutes);
 app.use("/utility", utilityRoutes);
 app.use("/expenses", expenseRoutes);
+app.use("/affiliates", affiliateRoutes);
 
 
 

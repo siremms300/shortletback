@@ -52,6 +52,73 @@ router.patch("/admin/:id/feature",
   propertyController.toggleFeatured
 );
 
+
+
+
+// Add this before module.exports
+router.post("/debug/test-discount", async (req, res) => {
+  try {
+    console.log('========== DEBUG DISCOUNT TEST ==========');
+    console.log('Request body:', req.body);
+    console.log('Discount received:', req.body.discount);
+    console.log('Discount type:', typeof req.body.discount);
+    
+    let discountData = null;
+    let parsedDiscount = null;
+    
+    if (req.body.discount) {
+      try {
+        // Try to parse if it's a string
+        if (typeof req.body.discount === 'string') {
+          parsedDiscount = JSON.parse(req.body.discount);
+          console.log('Parsed discount from string:', parsedDiscount);
+        } else {
+          parsedDiscount = req.body.discount;
+          console.log('Discount is already an object:', parsedDiscount);
+        }
+      } catch (e) {
+        console.error('Parse error:', e);
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Discount test endpoint',
+      receivedDiscount: req.body.discount,
+      receivedDiscountType: typeof req.body.discount,
+      parsedDiscount: parsedDiscount,
+      isActive: parsedDiscount?.isActive,
+      hasType: parsedDiscount?.type ? true : false,
+      hasValue: parsedDiscount?.value ? true : false
+    });
+  } catch (error) {
+    console.error('Debug endpoint error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
+
+router.get("/debug/test", (req, res) => {
+  console.log('🔧 Test endpoint called');
+  res.json({ message: 'Property routes are working' });
+});
+
+
+
+
+router.post('/debug-create', 
+  authMiddleware.verifyToken, 
+  propertyController.debugCreateProperty
+);
+
+
+
+
+
+
+
+
 module.exports = router;
 
 

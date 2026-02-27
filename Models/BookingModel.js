@@ -152,6 +152,10 @@ const bookingSchema = new mongoose.Schema(
         default: ''
       }
     },
+    affiliateBooking: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'AffiliateBooking'
+    },
     cancellationReason: String,
     cancelledAt: Date,
     specialRequests: String

@@ -36,639 +36,1088 @@ const bookingController = {
 
 
   // Create booking with corrected price calculation
-  createBooking: async (req, res) => {
-    try {
-      const {
-        propertyId,
-        checkIn,
-        checkOut,
-        guests,
-        specialRequests,
-        paymentMethod = 'paystack'
-      } = req.body;
+  // createBooking: async (req, res) => {
+  //   try {
+  //     const {
+  //       propertyId,
+  //       checkIn,
+  //       checkOut,
+  //       guests,
+  //       specialRequests,
+  //       paymentMethod = 'paystack'
+  //     } = req.body;
 
-      console.log('📝 [Backend] Creating booking with:', {
-        propertyId,
-        checkIn,
-        checkOut,
-        guests,
-        paymentMethod
-      });
+  //     console.log('📝 [Backend] Creating booking with:', {
+  //       propertyId,
+  //       checkIn,
+  //       checkOut,
+  //       guests,
+  //       paymentMethod
+  //     });
 
-      // Validate required fields
-      if (!propertyId || !checkIn || !checkOut || !guests) {
-        return res.status(400).json({ 
-          success: false,
-          message: "Property ID, check-in, check-out, and guests are required" 
-        });
-      }
+  //     // Validate required fields
+  //     if (!propertyId || !checkIn || !checkOut || !guests) {
+  //       return res.status(400).json({ 
+  //         success: false,
+  //         message: "Property ID, check-in, check-out, and guests are required" 
+  //       });
+  //     }
 
-      // Check if property exists and is active
-      const property = await Property.findById(propertyId);
-      if (!property || property.status !== 'active') {
-        return res.status(404).json({ 
-          success: false,
-          message: "Property not available" 
-        });
-      }
+  //     // Check if property exists and is active
+  //     const property = await Property.findById(propertyId);
+  //     if (!property || property.status !== 'active') {
+  //       return res.status(404).json({ 
+  //         success: false,
+  //         message: "Property not available" 
+  //       });
+  //     }
 
-      // Check availability - only consider confirmed bookings
-      const isAvailable = await Booking.checkAvailability(propertyId, checkIn, checkOut);
-      if (!isAvailable) {
-        return res.status(400).json({ 
-          success: false,
-          message: "Property not available for selected dates" 
-        });
-      }
+  //     // Check availability - only consider confirmed bookings
+  //     const isAvailable = await Booking.checkAvailability(propertyId, checkIn, checkOut);
+  //     if (!isAvailable) {
+  //       return res.status(400).json({ 
+  //         success: false,
+  //         message: "Property not available for selected dates" 
+  //       });
+  //     }
 
-      // Validate guests count
-      if (guests > property.specifications.maxGuests) {
-        return res.status(400).json({ 
-          success: false,
-          message: `Maximum ${property.specifications.maxGuests} guests allowed` 
-        });
-      }
+  //     // Validate guests count
+  //     if (guests > property.specifications.maxGuests) {
+  //       return res.status(400).json({ 
+  //         success: false,
+  //         message: `Maximum ${property.specifications.maxGuests} guests allowed` 
+  //       });
+  //     }
 
-      // Calculate total nights
-      const nights = Math.ceil((new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24));
+  //     // Calculate total nights
+  //     const nights = Math.ceil((new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24));
       
-      console.log('📅 [Backend] Date calculation:', {
-        checkIn: new Date(checkIn),
-        checkOut: new Date(checkOut),
-        nights,
-        diffMs: new Date(checkOut) - new Date(checkIn),
-        diffDays: (new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24)
-      });
+  //     console.log('📅 [Backend] Date calculation:', {
+  //       checkIn: new Date(checkIn),
+  //       checkOut: new Date(checkOut),
+  //       nights,
+  //       diffMs: new Date(checkOut) - new Date(checkIn),
+  //       diffDays: (new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24)
+  //     });
 
-      // VALIDATION: Ensure minimum nights
-      if (nights < 1) {
-        return res.status(400).json({
-          success: false,
-          message: "Check-out date must be after check-in date"
-        });
-      }
+  //     // VALIDATION: Ensure minimum nights
+  //     if (nights < 1) {
+  //       return res.status(400).json({
+  //         success: false,
+  //         message: "Check-out date must be after check-in date"
+  //       });
+  //     }
 
-      // Get property price breakdown
-      // Use the virtual getter if available, otherwise calculate manually
-      let propertyPriceBreakdown;
+  //     // Get property price breakdown
+  //     // Use the virtual getter if available, otherwise calculate manually
+  //     let propertyPriceBreakdown;
       
-      if (property.priceBreakdown) {
-        // Use existing price breakdown from property
-        propertyPriceBreakdown = property.priceBreakdown;
-        console.log('💰 [Backend] Using property.priceBreakdown:', propertyPriceBreakdown);
-      } else {
-        // Calculate manually
-        const actualPrice = property.price;
-        const utilityPercentage = property.utilityPercentage || 20;
-        const serviceChargePercentage = property.serviceChargePercentage || 10;
-        const vatPercentage = property.vatPercentage || 7.5;
+  //     if (property.priceBreakdown) {
+  //       // Use existing price breakdown from property
+  //       propertyPriceBreakdown = property.priceBreakdown;
+  //       console.log('💰 [Backend] Using property.priceBreakdown:', propertyPriceBreakdown);
+  //     } else {
+  //       // Calculate manually
+  //       const actualPrice = property.price;
+  //       const utilityPercentage = property.utilityPercentage || 20;
+  //       const serviceChargePercentage = property.serviceChargePercentage || 10;
+  //       const vatPercentage = property.vatPercentage || 7.5;
         
-        const utility = (actualPrice * utilityPercentage) / 100;
-        const serviceCharge = (actualPrice * serviceChargePercentage) / 100;
-        const accommodation = actualPrice - utility - serviceCharge;
-        const vat = (accommodation * vatPercentage) / 100;
-        const total = actualPrice + vat; // Actual + VAT on accommodation
+  //       const utility = (actualPrice * utilityPercentage) / 100;
+  //       const serviceCharge = (actualPrice * serviceChargePercentage) / 100;
+  //       const accommodation = actualPrice - utility - serviceCharge;
+  //       const vat = (accommodation * vatPercentage) / 100;
+  //       const total = actualPrice + vat; // Actual + VAT on accommodation
         
-        propertyPriceBreakdown = {
-          actualPrice,
-          utilityPercentage,
-          utility,
-          serviceChargePercentage,
-          serviceCharge,
-          accommodation,
-          vatPercentage,
-          vat,
-          total
-        };
+  //       propertyPriceBreakdown = {
+  //         actualPrice,
+  //         utilityPercentage,
+  //         utility,
+  //         serviceChargePercentage,
+  //         serviceCharge,
+  //         accommodation,
+  //         vatPercentage,
+  //         vat,
+  //         total
+  //       };
         
-        console.log('💰 [Backend] Calculated propertyPriceBreakdown:', propertyPriceBreakdown);
-      }
+  //       console.log('💰 [Backend] Calculated propertyPriceBreakdown:', propertyPriceBreakdown);
+  //     }
 
-      // Calculate booking price breakdown for ALL NIGHTS
-      const bookingPriceBreakdown = {
-        actualPrice: propertyPriceBreakdown.actualPrice * nights,
-        utilityPercentage: property.utilityPercentage || 20,
-        utility: propertyPriceBreakdown.utility * nights,
-        serviceChargePercentage: property.serviceChargePercentage || 10,
-        serviceCharge: propertyPriceBreakdown.serviceCharge * nights,
-        accommodation: propertyPriceBreakdown.accommodation * nights,
-        vatPercentage: property.vatPercentage || 7.5,
-        vat: propertyPriceBreakdown.vat * nights,
-        subtotal: propertyPriceBreakdown.actualPrice * nights, // Same as actualPrice * nights
-        totalAmount: propertyPriceBreakdown.total * nights // (Actual + VAT) * nights
-      };
+  //     // Calculate booking price breakdown for ALL NIGHTS
+  //     const bookingPriceBreakdown = {
+  //       actualPrice: propertyPriceBreakdown.actualPrice * nights,
+  //       utilityPercentage: property.utilityPercentage || 20,
+  //       utility: propertyPriceBreakdown.utility * nights,
+  //       serviceChargePercentage: property.serviceChargePercentage || 10,
+  //       serviceCharge: propertyPriceBreakdown.serviceCharge * nights,
+  //       accommodation: propertyPriceBreakdown.accommodation * nights,
+  //       vatPercentage: property.vatPercentage || 7.5,
+  //       vat: propertyPriceBreakdown.vat * nights,
+  //       subtotal: propertyPriceBreakdown.actualPrice * nights, // Same as actualPrice * nights
+  //       totalAmount: propertyPriceBreakdown.total * nights // (Actual + VAT) * nights
+  //     };
 
-      // DEBUG: Log the calculated breakdown
-      console.log('🧮 [Backend] FINAL PRICE CALCULATION:', {
-        nights,
-        propertyPrice: property.price,
-        propertyPriceBreakdown,
+  //     // DEBUG: Log the calculated breakdown
+  //     console.log('🧮 [Backend] FINAL PRICE CALCULATION:', {
+  //       nights,
+  //       propertyPrice: property.price,
+  //       propertyPriceBreakdown,
         
-        // Per night breakdown
-        perNight: {
-          actualPrice: propertyPriceBreakdown.actualPrice,
-          utility: propertyPriceBreakdown.utility,
-          serviceCharge: propertyPriceBreakdown.serviceCharge,
-          accommodation: propertyPriceBreakdown.accommodation,
-          vat: propertyPriceBreakdown.vat,
-          total: propertyPriceBreakdown.total
-        },
+  //       // Per night breakdown
+  //       perNight: {
+  //         actualPrice: propertyPriceBreakdown.actualPrice,
+  //         utility: propertyPriceBreakdown.utility,
+  //         serviceCharge: propertyPriceBreakdown.serviceCharge,
+  //         accommodation: propertyPriceBreakdown.accommodation,
+  //         vat: propertyPriceBreakdown.vat,
+  //         total: propertyPriceBreakdown.total
+  //       },
         
-        // Total for all nights
-        totalForStay: {
-          actualPrice: bookingPriceBreakdown.actualPrice,
-          utility: bookingPriceBreakdown.utility,
-          serviceCharge: bookingPriceBreakdown.serviceCharge,
-          accommodation: bookingPriceBreakdown.accommodation,
-          vat: bookingPriceBreakdown.vat,
-          totalAmount: bookingPriceBreakdown.totalAmount
-        },
+  //       // Total for all nights
+  //       totalForStay: {
+  //         actualPrice: bookingPriceBreakdown.actualPrice,
+  //         utility: bookingPriceBreakdown.utility,
+  //         serviceCharge: bookingPriceBreakdown.serviceCharge,
+  //         accommodation: bookingPriceBreakdown.accommodation,
+  //         vat: bookingPriceBreakdown.vat,
+  //         totalAmount: bookingPriceBreakdown.totalAmount
+  //       },
         
-        // Validate Paystack requirements
-        paystackValidation: {
-          totalNaira: bookingPriceBreakdown.totalAmount,
-          totalKobo: Math.round(bookingPriceBreakdown.totalAmount * 100),
-          meetsMinimum: bookingPriceBreakdown.totalAmount >= 1,
-          isIntegerKobo: Number.isInteger(Math.round(bookingPriceBreakdown.totalAmount * 100))
-        }
-      });
+  //       // Validate Paystack requirements
+  //       paystackValidation: {
+  //         totalNaira: bookingPriceBreakdown.totalAmount,
+  //         totalKobo: Math.round(bookingPriceBreakdown.totalAmount * 100),
+  //         meetsMinimum: bookingPriceBreakdown.totalAmount >= 1,
+  //         isIntegerKobo: Number.isInteger(Math.round(bookingPriceBreakdown.totalAmount * 100))
+  //       }
+  //     });
 
-      // VALIDATION: Ensure minimum amount for Paystack (if using paystack)
-      if (paymentMethod === 'paystack' && bookingPriceBreakdown.totalAmount < 1) {
-        console.error('❌ [Backend] Amount too small for Paystack:', bookingPriceBreakdown.totalAmount);
-        return res.status(400).json({
-          success: false,
-          message: `Total amount (₦${bookingPriceBreakdown.totalAmount}) is less than minimum ₦1 required for payment. Please contact support.`
-        });
-      }
+  //     // VALIDATION: Ensure minimum amount for Paystack (if using paystack)
+  //     if (paymentMethod === 'paystack' && bookingPriceBreakdown.totalAmount < 1) {
+  //       console.error('❌ [Backend] Amount too small for Paystack:', bookingPriceBreakdown.totalAmount);
+  //       return res.status(400).json({
+  //         success: false,
+  //         message: `Total amount (₦${bookingPriceBreakdown.totalAmount}) is less than minimum ₦1 required for payment. Please contact support.`
+  //       });
+  //     }
 
-      // Create booking with price breakdown
-      const booking = new Booking({
-        property: propertyId,
-        user: req.user.id,
-        checkIn: new Date(checkIn),
-        checkOut: new Date(checkOut),
-        guests,
-        priceBreakdown: bookingPriceBreakdown,
-        totalAmount: bookingPriceBreakdown.totalAmount, // Ensure this is set
-        specialRequests: specialRequests || '',
-        paymentStatus: 'pending',
-        bookingStatus: 'pending',
-        paymentMethod,
-        paymentReference: `HOLS-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-      });
+  //     // Create booking with price breakdown
+  //     const booking = new Booking({
+  //       property: propertyId,
+  //       user: req.user.id,
+  //       checkIn: new Date(checkIn),
+  //       checkOut: new Date(checkOut),
+  //       guests,
+  //       priceBreakdown: bookingPriceBreakdown,
+  //       totalAmount: bookingPriceBreakdown.totalAmount, // Ensure this is set
+  //       specialRequests: specialRequests || '',
+  //       paymentStatus: 'pending',
+  //       bookingStatus: 'pending',
+  //       paymentMethod,
+  //       paymentReference: `HOLS-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+  //     });
 
-      // DEBUG: Log before saving
-      console.log('💾 [Backend] Saving booking with:', {
-        priceBreakdown: booking.priceBreakdown,
-        totalAmount: booking.totalAmount,
-        paymentReference: booking.paymentReference,
-        paymentMethod: booking.paymentMethod,
-        nights: nights
-      });
+  //     // DEBUG: Log before saving
+  //     console.log('💾 [Backend] Saving booking with:', {
+  //       priceBreakdown: booking.priceBreakdown,
+  //       totalAmount: booking.totalAmount,
+  //       paymentReference: booking.paymentReference,
+  //       paymentMethod: booking.paymentMethod,
+  //       nights: nights
+  //     });
 
-      // For bank transfer, initialize bank transfer details
-      if (paymentMethod === 'bank_transfer') {
-        booking.bankTransferDetails = {
-          accountName: 'Hols Apartments Ltd',
-          accountNumber: '0094639347',
-          bankName: 'Sterling Bank',
-          transferReference: `TRF-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
-          status: 'pending'
-        };
-        booking.bookingStatus = 'pending';
-      }
+  //     // For bank transfer, initialize bank transfer details
+  //     if (paymentMethod === 'bank_transfer') {
+  //       booking.bankTransferDetails = {
+  //         accountName: 'Hols Apartments Ltd',
+  //         accountNumber: '0094639347',
+  //         bankName: 'Sterling Bank',
+  //         transferReference: `TRF-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+  //         status: 'pending'
+  //       };
+  //       booking.bookingStatus = 'pending';
+  //     }
 
-      // For onsite payment, initialize onsite details
-      if (paymentMethod === 'onsite') {
-        booking.onsitePaymentDetails = {
-          expectedAmount: bookingPriceBreakdown.totalAmount,
-          status: 'pending'
-        };
-        booking.bookingStatus = 'pending';
-      }
+  //     // For onsite payment, initialize onsite details
+  //     if (paymentMethod === 'onsite') {
+  //       booking.onsitePaymentDetails = {
+  //         expectedAmount: bookingPriceBreakdown.totalAmount,
+  //         status: 'pending'
+  //       };
+  //       booking.bookingStatus = 'pending';
+  //     }
 
-      await booking.save();
+  //     await booking.save();
 
-      // DEBUG: Verify saved booking
-      const savedBooking = await Booking.findById(booking._id);
-      console.log('✅ [Backend] Saved booking data:', {
-        _id: savedBooking._id,
-        priceBreakdown: savedBooking.priceBreakdown,
-        totalAmount: savedBooking.totalAmount,
-        paymentReference: savedBooking.paymentReference,
-        paymentMethod: savedBooking.paymentMethod,
-        checkIn: savedBooking.checkIn,
-        checkOut: savedBooking.checkOut,
-        nights: Math.ceil((new Date(savedBooking.checkOut) - new Date(savedBooking.checkIn)) / (1000 * 60 * 60 * 24))
-      });
+  //     // DEBUG: Verify saved booking
+  //     const savedBooking = await Booking.findById(booking._id);
+  //     console.log('✅ [Backend] Saved booking data:', {
+  //       _id: savedBooking._id,
+  //       priceBreakdown: savedBooking.priceBreakdown,
+  //       totalAmount: savedBooking.totalAmount,
+  //       paymentReference: savedBooking.paymentReference,
+  //       paymentMethod: savedBooking.paymentMethod,
+  //       checkIn: savedBooking.checkIn,
+  //       checkOut: savedBooking.checkOut,
+  //       nights: Math.ceil((new Date(savedBooking.checkOut) - new Date(savedBooking.checkIn)) / (1000 * 60 * 60 * 24))
+  //     });
 
-      // Populate booking data for response
-      await booking.populate('property', 'title location images price specifications utilityPercentage serviceChargePercentage vatPercentage calculatedPrices');
-      await booking.populate('user', 'firstName lastName email');
+  //     // Populate booking data for response
+  //     await booking.populate('property', 'title location images price specifications utilityPercentage serviceChargePercentage vatPercentage calculatedPrices');
+  //     await booking.populate('user', 'firstName lastName email');
 
-      // Send email notification to admin
-      try {
-        await emailService.sendNewBookingNotification(booking);
-      } catch (emailError) {
-        console.error('Failed to send booking notification:', emailError);
-      }
+  //     // Send email notification to admin
+  //     try {
+  //       await emailService.sendNewBookingNotification(booking);
+  //     } catch (emailError) {
+  //       console.error('Failed to send booking notification:', emailError);
+  //     }
 
-      // Send different messages based on payment method
-      let successMessage = "Booking created successfully. Please complete payment to confirm your booking.";
+  //     // Send different messages based on payment method
+  //     let successMessage = "Booking created successfully. Please complete payment to confirm your booking.";
       
-      if (paymentMethod === 'bank_transfer') {
-        successMessage = "Booking created successfully. Please make a bank transfer to the provided account and upload proof of payment.";
-      } else if (paymentMethod === 'onsite') {
-        successMessage = "Booking created successfully. Please proceed to the property for check-in and payment.";
-      }
+  //     if (paymentMethod === 'bank_transfer') {
+  //       successMessage = "Booking created successfully. Please make a bank transfer to the provided account and upload proof of payment.";
+  //     } else if (paymentMethod === 'onsite') {
+  //       successMessage = "Booking created successfully. Please proceed to the property for check-in and payment.";
+  //     }
 
-      console.log('🎉 [Backend] Booking created successfully:', {
-        bookingId: booking._id,
-        totalAmount: booking.totalAmount,
-        paymentMethod: booking.paymentMethod,
-        nights: nights,
-        priceBreakdown: booking.priceBreakdown
-      });
+  //     console.log('🎉 [Backend] Booking created successfully:', {
+  //       bookingId: booking._id,
+  //       totalAmount: booking.totalAmount,
+  //       paymentMethod: booking.paymentMethod,
+  //       nights: nights,
+  //       priceBreakdown: booking.priceBreakdown
+  //     });
 
-      // Format the response
-      const responseData = {
-        success: true,
-        message: successMessage,
-        booking: {
-          _id: booking._id,
-          property: booking.property,
-          user: booking.user,
-          checkIn: booking.checkIn,
-          checkOut: booking.checkOut,
-          guests: booking.guests,
-          priceBreakdown: booking.priceBreakdown,
-          totalAmount: booking.totalAmount,
-          paymentStatus: booking.paymentStatus,
-          bookingStatus: booking.bookingStatus,
-          paymentMethod: booking.paymentMethod,
-          paymentReference: booking.paymentReference,
-          specialRequests: booking.specialRequests,
-          createdAt: booking.createdAt
-        },
-        paymentMethod,
-        priceBreakdown: bookingPriceBreakdown
-      };
+  //     // Format the response
+  //     const responseData = {
+  //       success: true,
+  //       message: successMessage,
+  //       booking: {
+  //         _id: booking._id,
+  //         property: booking.property,
+  //         user: booking.user,
+  //         checkIn: booking.checkIn,
+  //         checkOut: booking.checkOut,
+  //         guests: booking.guests,
+  //         priceBreakdown: booking.priceBreakdown,
+  //         totalAmount: booking.totalAmount,
+  //         paymentStatus: booking.paymentStatus,
+  //         bookingStatus: booking.bookingStatus,
+  //         paymentMethod: booking.paymentMethod,
+  //         paymentReference: booking.paymentReference,
+  //         specialRequests: booking.specialRequests,
+  //         createdAt: booking.createdAt
+  //       },
+  //       paymentMethod,
+  //       priceBreakdown: bookingPriceBreakdown
+  //     };
 
-      // Include bank details if payment method is bank transfer
-      if (paymentMethod === 'bank_transfer') {
-        responseData.bankDetails = booking.bankTransferDetails;
-      }
+  //     // Include bank details if payment method is bank transfer
+  //     if (paymentMethod === 'bank_transfer') {
+  //       responseData.bankDetails = booking.bankTransferDetails;
+  //     }
 
-      res.status(201).json(responseData);
+  //     res.status(201).json(responseData);
 
-    } catch (error) {
-      console.error('💥 [Backend] Create booking error:', {
-        name: error.name,
-        message: error.message,
-        stack: error.stack,
-        ...(error.name === 'ValidationError' && { errors: error.errors })
-      });
+  //   } catch (error) {
+  //     console.error('💥 [Backend] Create booking error:', {
+  //       name: error.name,
+  //       message: error.message,
+  //       stack: error.stack,
+  //       ...(error.name === 'ValidationError' && { errors: error.errors })
+  //     });
       
-      // Handle specific errors
-      if (error.name === 'ValidationError') {
-        return res.status(400).json({ 
-          success: false,
-          message: "Validation error",
-          error: error.message 
-        });
-      }
+  //     // Handle specific errors
+  //     if (error.name === 'ValidationError') {
+  //       return res.status(400).json({ 
+  //         success: false,
+  //         message: "Validation error",
+  //         error: error.message 
+  //       });
+  //     }
       
-      if (error.name === 'CastError') {
-        return res.status(400).json({ 
-          success: false,
-          message: "Invalid property ID format" 
-        });
-      }
+  //     if (error.name === 'CastError') {
+  //       return res.status(400).json({ 
+  //         success: false,
+  //         message: "Invalid property ID format" 
+  //       });
+  //     }
       
-      // Handle duplicate payment reference
-      if (error.code === 11000 && error.keyPattern?.paymentReference) {
-        return res.status(400).json({
-          success: false,
-          message: "Payment reference already exists. Please try again."
-        });
-      }
+  //     // Handle duplicate payment reference
+  //     if (error.code === 11000 && error.keyPattern?.paymentReference) {
+  //       return res.status(400).json({
+  //         success: false,
+  //         message: "Payment reference already exists. Please try again."
+  //       });
+  //     }
       
-      res.status(500).json({ 
-        success: false,
-        message: "Failed to create booking", 
-        error: error.message 
-      });
-    }
-  },
+  //     res.status(500).json({ 
+  //       success: false,
+  //       message: "Failed to create booking", 
+  //       error: error.message 
+  //     });
+  //   }
+  // },
 
 
 
- initializePayment: async (req, res) => {
+  
+
+
+
+
+
+
+
+
+
+
+
+
+createBooking: async (req, res) => {
   try {
-    const { id } = req.params;
-    const { email } = req.body;
+    const {
+      propertyId,
+      checkIn,
+      checkOut,
+      guests,
+      specialRequests,
+      paymentMethod = 'paystack',
+      affiliateCode // Add affiliateCode to destructured fields
+    } = req.body;
 
-    console.log('🎯 [Backend] Initialize payment called for booking:', id);
+    console.log('📝 [Backend] Creating booking with:', {
+      propertyId,
+      checkIn,
+      checkOut,
+      guests,
+      paymentMethod,
+      affiliateCode: affiliateCode || 'none provided'
+    });
 
-    // Validate booking ID
-    if (!id || id === 'undefined' || !mongoose.Types.ObjectId.isValid(id)) {
+    // Validate required fields
+    if (!propertyId || !checkIn || !checkOut || !guests) {
       return res.status(400).json({ 
         success: false,
-        message: "Invalid booking ID" 
+        message: "Property ID, check-in, check-out, and guests are required" 
       });
     }
 
-    const booking = await Booking.findById(id)
-      .populate('property', 'title price')
-      .populate('user', 'firstName lastName email');
-
-    if (!booking) {
-      console.log('❌ [Backend] Booking not found:', id);
+    // Check if property exists and is active
+    const property = await Property.findById(propertyId);
+    if (!property || property.status !== 'active') {
       return res.status(404).json({ 
         success: false,
-        message: "Booking not found" 
+        message: "Property not available" 
       });
     }
 
-    // Check if booking belongs to user
-    if (booking.user._id.toString() !== req.user.id && req.user.role !== 'admin') {
-      console.log('❌ [Backend] Access denied for user:', req.user.id);
-      return res.status(403).json({ 
-        success: false,
-        message: "Access denied" 
-      });
-    }
-
-    // Check if booking is already paid
-    if (booking.paymentStatus === 'paid') {
-      console.log('ℹ️ [Backend] Booking already paid:', id);
+    // Check availability - only consider confirmed bookings
+    const isAvailable = await Booking.checkAvailability(propertyId, checkIn, checkOut);
+    if (!isAvailable) {
       return res.status(400).json({ 
         success: false,
-        message: "Booking already paid" 
+        message: "Property not available for selected dates" 
       });
     }
 
-    // Check payment method
-    if (booking.paymentMethod !== 'paystack') {
-      console.log('ℹ️ [Backend] Wrong payment method:', booking.paymentMethod);
+    // Validate guests count
+    if (guests > property.specifications.maxGuests) {
       return res.status(400).json({ 
         success: false,
-        message: `This booking uses ${booking.paymentMethod === 'bank_transfer' ? 'bank transfer' : 'onsite payment'}. Please use the appropriate payment process.` 
+        message: `Maximum ${property.specifications.maxGuests} guests allowed` 
       });
     }
 
-    // Generate new payment reference if payment was previously initialized but failed
-    if (booking.paystackReference && booking.paymentStatus === 'pending') {
-      booking.paymentReference = `HOLS-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      booking.paystackReference = undefined;
-      await booking.save();
-      console.log('🔄 [Backend] Generated new payment reference:', booking.paymentReference);
-    }
-
-    // Get the amount from priceBreakdown
-    let totalAmountNaira = 0;
+    // Calculate total nights
+    const nights = Math.ceil((new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24));
     
-    if (booking.priceBreakdown && booking.priceBreakdown.totalAmount) {
-      totalAmountNaira = booking.priceBreakdown.totalAmount;
-      console.log('💰 [Backend] Using priceBreakdown.totalAmount:', totalAmountNaira);
-    } else if (booking.totalAmount) {
-      totalAmountNaira = booking.totalAmount;
-      console.log('💰 [Backend] Using booking.totalAmount:', totalAmountNaira);
+    console.log('📅 [Backend] Date calculation:', {
+      checkIn: new Date(checkIn),
+      checkOut: new Date(checkOut),
+      nights,
+      diffMs: new Date(checkOut) - new Date(checkIn),
+      diffDays: (new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24)
+    });
+
+    // VALIDATION: Ensure minimum nights
+    if (nights < 1) {
+      return res.status(400).json({
+        success: false,
+        message: "Check-out date must be after check-in date"
+      });
+    }
+
+    // Get property price breakdown
+    let propertyPriceBreakdown;
+    
+    if (property.priceBreakdown) {
+      propertyPriceBreakdown = property.priceBreakdown;
+      console.log('💰 [Backend] Using property.priceBreakdown:', propertyPriceBreakdown);
     } else {
-      console.error('❌ [Backend] No amount found in booking');
-      return res.status(400).json({ 
-        success: false,
-        message: "Booking amount not found" 
-      });
-    }
-    
-    // CRITICAL FIX: Validate and format amount
-    // 1. Ensure it's a number
-    if (typeof totalAmountNaira !== 'number' || isNaN(totalAmountNaira) || !isFinite(totalAmountNaira)) {
-      console.error('❌ [Backend] Invalid amount:', totalAmountNaira);
-      return res.status(400).json({ 
-        success: false,
-        message: "Invalid payment amount" 
-      });
-    }
-    
-    // 2. Round to 2 decimal places to avoid floating point issues
-    totalAmountNaira = Math.round(totalAmountNaira * 100) / 100;
-    
-    // 3. Convert to kobo (Multiply by 100) - THIS IS CRITICAL
-    let totalAmountInKobo = Math.round(totalAmountNaira * 100);
-    
-    // CRITICAL DEBUG: Show conversion
-    console.log('💰 [Backend] AMOUNT CONVERSION:', {
-      bookingId: booking._id,
+      const actualPrice = property.price;
+      const utilityPercentage = property.utilityPercentage || 20;
+      const serviceChargePercentage = property.serviceChargePercentage || 10;
+      const vatPercentage = property.vatPercentage || 7.5;
       
-      // Your example: ₦157,875
-      nairaAmount: totalAmountNaira,
-      koboAmount: totalAmountInKobo,
+      const utility = (actualPrice * utilityPercentage) / 100;
+      const serviceCharge = (actualPrice * serviceChargePercentage) / 100;
+      const accommodation = actualPrice - utility - serviceCharge;
+      const vat = (accommodation * vatPercentage) / 100;
+      const total = actualPrice + vat;
       
-      // Show the exact calculation
-      calculation: `${totalAmountNaira} × 100 = ${totalAmountInKobo}`,
+      propertyPriceBreakdown = {
+        actualPrice,
+        utilityPercentage,
+        utility,
+        serviceChargePercentage,
+        serviceCharge,
+        accommodation,
+        vatPercentage,
+        vat,
+        total
+      };
       
-      // Example: ₦157,875 → 15,787,500 kobo
-      exampleConversion: `₦${totalAmountNaira} → ${totalAmountInKobo} kobo`,
-      
-      // Validation
-      isInteger: Number.isInteger(totalAmountInKobo),
-      isPositive: totalAmountInKobo > 0,
-      meetsMinimum: totalAmountInKobo >= 100,
-      
-      // For your specific example:
-      yourExample: '₦157,875 should be: 157875 × 100 = 15,787,500 kobo'
-    });
-
-    // VALIDATION: Ensure amount is integer in kobo
-    if (!Number.isInteger(totalAmountInKobo)) {
-      console.error('❌ [Backend] Amount in kobo is not integer:', {
-        naira: totalAmountNaira,
-        kobo: totalAmountInKobo,
-        calculation: `${totalAmountNaira} × 100 = ${totalAmountNaira * 100}`
-      });
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid amount conversion. Amount must be whole number in kobo.'
-      });
+      console.log('💰 [Backend] Calculated propertyPriceBreakdown:', propertyPriceBreakdown);
     }
 
-    // VALIDATION: Minimum amount (₦1 = 100 kobo)
-    if (totalAmountInKobo < 100) {
-      console.error('❌ [Backend] Amount too small:', {
-        naira: totalAmountNaira,
-        kobo: totalAmountInKobo,
-        minRequired: 100
-      });
-      return res.status(400).json({
-        success: false,
-        message: `Amount (₦${totalAmountNaira}) is too small. Minimum is ₦1.`
-      });
-    }
+    // Calculate booking price breakdown for ALL NIGHTS
+    const bookingPriceBreakdown = {
+      actualPrice: propertyPriceBreakdown.actualPrice * nights,
+      utilityPercentage: property.utilityPercentage || 20,
+      utility: propertyPriceBreakdown.utility * nights,
+      serviceChargePercentage: property.serviceChargePercentage || 10,
+      serviceCharge: propertyPriceBreakdown.serviceCharge * nights,
+      accommodation: propertyPriceBreakdown.accommodation * nights,
+      vatPercentage: property.vatPercentage || 7.5,
+      vat: propertyPriceBreakdown.vat * nights,
+      subtotal: propertyPriceBreakdown.actualPrice * nights,
+      totalAmount: propertyPriceBreakdown.total * nights
+    };
 
-    // VALIDATION: Check if amount is ridiculously large (potential double conversion)
-    if (totalAmountInKobo > 1000000000) { // 10 million Naira
-      console.error('❌ [Backend] Amount suspiciously large:', {
-        naira: totalAmountNaira,
-        kobo: totalAmountInKobo,
-        warning: 'Possible double conversion (naira × 100 × 100)'
-      });
-      return res.status(400).json({
-        success: false,
-        message: `Amount error. Please check calculation: ₦${totalAmountNaira} should be ${totalAmountInKobo} kobo`
-      });
-    }
-
-    console.log('🎯 [Backend] Calling Paystack with:', {
-      email: email || booking.user.email,
-      amountInKobo: totalAmountInKobo,
-      amountInNaira: totalAmountNaira,
-      reference: booking.paymentReference,
-      conversion: `${totalAmountNaira} NGN = ${totalAmountInKobo} kobo`,
-      bookingId: booking._id
-    });
-
-    try {
-      // Initialize Paystack payment - amount MUST be in kobo
-      const paymentData = await paystack.initializeTransaction({
-        email: email || booking.user.email,
-        amount: totalAmountInKobo,  // THIS MUST BE IN KOBO (15787500 for ₦157,875)
-        reference: booking.paymentReference,
-        metadata: {
-          bookingId: booking._id.toString(),
-          propertyTitle: booking.property?.title || 'Unknown Property',
-          customerName: `${booking.user.firstName} ${booking.user.lastName}`,
-          paymentMethod: 'paystack',
-          totalAmountNaira: totalAmountNaira,
-          totalAmountKobo: totalAmountInKobo
-        },
-        callback_url: `${process.env.CLIENT_URL}/booking/success`
-      });
-
-      console.log('✅ [Backend] Paystack response received:', {
-        hasAuthorizationUrl: !!paymentData?.authorization_url,
-        reference: paymentData?.reference
-      });
-
-      if (!paymentData || !paymentData.authorization_url) {
-        console.error('❌ [Backend] Invalid Paystack response:', paymentData);
-        return res.status(500).json({ 
-          success: false,
-          message: "Payment gateway error" 
-        });
+    console.log('🧮 [Backend] FINAL PRICE CALCULATION:', {
+      nights,
+      propertyPrice: property.price,
+      totalForStay: {
+        actualPrice: bookingPriceBreakdown.actualPrice,
+        utility: bookingPriceBreakdown.utility,
+        serviceCharge: bookingPriceBreakdown.serviceCharge,
+        accommodation: bookingPriceBreakdown.accommodation,
+        vat: bookingPriceBreakdown.vat,
+        totalAmount: bookingPriceBreakdown.totalAmount
+      },
+      paystackValidation: {
+        totalNaira: bookingPriceBreakdown.totalAmount,
+        totalKobo: Math.round(bookingPriceBreakdown.totalAmount * 100),
+        meetsMinimum: bookingPriceBreakdown.totalAmount >= 1
       }
+    });
 
-      // Update booking with Paystack reference
-      booking.paystackReference = paymentData.reference;
-      await booking.save();
-
-      console.log('✅ [Backend] Payment initialized successfully:', {
-        bookingId: booking._id,
-        amountNaira: totalAmountNaira,
-        amountKobo: totalAmountInKobo,
-        reference: paymentData.reference,
-        authorizationUrl: paymentData.authorization_url
+    // VALIDATION: Ensure minimum amount for Paystack
+    if (paymentMethod === 'paystack' && bookingPriceBreakdown.totalAmount < 1) {
+      console.error('❌ [Backend] Amount too small for Paystack:', bookingPriceBreakdown.totalAmount);
+      return res.status(400).json({
+        success: false,
+        message: `Total amount (₦${bookingPriceBreakdown.totalAmount}) is less than minimum ₦1 required for payment. Please contact support.`
       });
+    }
 
-      // Return response
-      res.status(200).json({
-        success: true,
-        message: "Payment initialized successfully",
-        authorization_url: paymentData.authorization_url,
-        reference: paymentData.reference,
-        access_code: paymentData.access_code,
-        amount: totalAmountNaira,
-        amountInKobo: totalAmountInKobo,
-        bookingId: booking._id
-      });
+    // Create booking with price breakdown
+    const booking = new Booking({
+      property: propertyId,
+      user: req.user.id,
+      checkIn: new Date(checkIn),
+      checkOut: new Date(checkOut),
+      guests,
+      priceBreakdown: bookingPriceBreakdown,
+      totalAmount: bookingPriceBreakdown.totalAmount,
+      specialRequests: specialRequests || '',
+      paymentStatus: 'pending',
+      bookingStatus: 'pending',
+      paymentMethod,
+      paymentReference: `HOLS-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    });
 
-    } catch (paystackError) {
-      console.error('💥 [Backend] Paystack API Error:', {
-        message: paystackError.message,
-        response: paystackError.response?.data,
-        status: paystackError.response?.status
-      });
-      
-      // Update booking status
-      booking.paymentStatus = 'failed';
-      await booking.save();
-      
-      // Check for specific Paystack errors
-      const paystackResponse = paystackError.response?.data;
-      
-      if (paystackResponse?.message?.includes('Invalid Amount')) {
-        console.error('🔍 [Backend] INVALID AMOUNT ERROR DETAILS:', {
-          // What we sent
-          sentAmountKobo: totalAmountInKobo,
-          sentAmountNaira: totalAmountNaira,
-          
-          // For debugging
-          conversionCheck: {
-            expected: `₦${totalAmountNaira} → ${totalAmountNaira * 100} kobo`,
-            actualSent: `${totalAmountInKobo} kobo`,
-            calculation: `${totalAmountNaira} × 100 = ${totalAmountInKobo}`,
-            isCorrect: totalAmountInKobo === totalAmountNaira * 100
-          },
-          
-          // Paystack response
-          paystackError: paystackResponse
+    // ========== AFFILIATE CODE HANDLING ==========
+    let affiliateInfo = null;
+    if (affiliateCode) {
+      try {
+        console.log('🎯 [Backend] Affiliate code provided:', affiliateCode);
+        
+        // Import Affiliate model
+        const Affiliate = mongoose.model('Affiliate');
+        
+        // Validate affiliate code
+        const affiliate = await Affiliate.findOne({
+          affiliateCode: affiliateCode.toUpperCase(),
+          status: 'active'
         });
         
-        // Provide clear error message
-        let errorMessage = `Payment amount error. We sent ${totalAmountInKobo} kobo (₦${totalAmountNaira}). `;
-        
-        // Check for common mistakes
-        if (totalAmountInKobo === totalAmountNaira) {
-          errorMessage += "ERROR: Amount was NOT converted to kobo (should be naira × 100).";
-        } else if (totalAmountInKobo === totalAmountNaira * 10000) {
-          errorMessage += "ERROR: Double conversion detected (naira × 100 × 100).";
+        if (affiliate) {
+          console.log('✅ [Backend] Valid affiliate found:', {
+            id: affiliate._id,
+            name: affiliate.name,
+            code: affiliate.affiliateCode,
+            commissionRate: affiliate.commissionRate
+          });
+          
+          // Store affiliate info to be processed after booking is saved
+          affiliateInfo = {
+            id: affiliate._id,
+            code: affiliate.affiliateCode,
+            commissionRate: affiliate.commissionRate,
+            name: affiliate.name
+          };
+          
+          // Add affiliateCode to booking for reference (will be populated later)
+          booking.affiliateCode = affiliateCode.toUpperCase();
         } else {
-          errorMessage += "Please verify the amount is correctly converted to kobo.";
+          console.log('⚠️ [Backend] Invalid or inactive affiliate code:', affiliateCode);
+          // Don't block booking creation, just log and continue
         }
+      } catch (affiliateError) {
+        console.error('❌ [Backend] Error validating affiliate code:', affiliateError);
+        // Don't block booking creation, just log and continue
+      }
+    }
+
+    // For bank transfer, initialize bank transfer details
+    if (paymentMethod === 'bank_transfer') {
+      booking.bankTransferDetails = {
+        accountName: 'Hols Apartments Ltd',
+        accountNumber: '0094639347',
+        bankName: 'Sterling Bank',
+        transferReference: `TRF-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+        status: 'pending'
+      };
+      booking.bookingStatus = 'pending';
+    }
+
+    // For onsite payment, initialize onsite details
+    if (paymentMethod === 'onsite') {
+      booking.onsitePaymentDetails = {
+        expectedAmount: bookingPriceBreakdown.totalAmount,
+        status: 'pending'
+      };
+      booking.bookingStatus = 'pending';
+    }
+
+    await booking.save();
+    console.log('✅ [Backend] Booking saved with ID:', booking._id);
+
+    // ========== PROCESS AFFILIATE AFTER BOOKING IS SAVED ==========
+    if (affiliateInfo) {
+      try {
+        console.log('🎯 [Backend] Processing affiliate commission for booking:', booking._id);
         
-        return res.status(400).json({ 
-          success: false,
-          message: errorMessage,
-          details: {
-            nairaAmount: totalAmountNaira,
-            koboAmountSent: totalAmountInKobo,
-            expectedKobo: totalAmountNaira * 100,
-            paystackError: paystackResponse?.message
+        // Import models
+        const Affiliate = mongoose.model('Affiliate');
+        const AffiliateBooking = mongoose.model('AffiliateBooking');
+        
+        // Calculate commission
+        const commissionAmount = (booking.totalAmount * affiliateInfo.commissionRate) / 100;
+        
+        console.log('💰 [Backend] Commission calculation:', {
+          bookingAmount: booking.totalAmount,
+          commissionRate: affiliateInfo.commissionRate,
+          commissionAmount
+        });
+
+        // Create affiliate booking record
+        const affiliateBooking = new AffiliateBooking({
+          affiliate: affiliateInfo.id,
+          booking: booking._id,
+          affiliateCode: affiliateInfo.code,
+          bookingDetails: {
+            propertyTitle: property.title,
+            propertyPrice: property.price,
+            checkIn: booking.checkIn,
+            checkOut: booking.checkOut,
+            nights,
+            guests: booking.guests
+          },
+          bookingAmount: booking.totalAmount,
+          commissionRate: affiliateInfo.commissionRate,
+          commissionAmount,
+          appliedBy: req.user.id,
+          metadata: {
+            userEmail: req.user.email,
+            userPhone: req.user.phone || 'Not provided'
           }
         });
+
+        await affiliateBooking.save();
+        console.log('✅ [Backend] Affiliate booking record created:', affiliateBooking._id);
+
+        // Update affiliate stats
+        await Affiliate.findByIdAndUpdate(affiliateInfo.id, {
+          $inc: {
+            'stats.totalBookings': 1,
+            'stats.totalEarnings': booking.totalAmount,
+            'stats.totalCommission': commissionAmount,
+            'stats.pendingCommission': commissionAmount
+          },
+          lastBookingAt: new Date()
+        });
+
+        console.log('✅ [Backend] Affiliate stats updated for:', affiliateInfo.id);
+
+        // Link to booking (optional - you can add this field to your Booking model)
+        // booking.affiliateBooking = affiliateBooking._id;
+        // await booking.save();
+
+      } catch (affiliateError) {
+        console.error('❌ [Backend] Error processing affiliate commission:', affiliateError);
+        // Log but don't fail the booking creation
       }
-      
-      // Generic error
-      return res.status(400).json({ 
-        success: false,
-        message: paystackError.message || 'Payment initialization failed'
-      });
     }
 
+    // DEBUG: Verify saved booking
+    const savedBooking = await Booking.findById(booking._id);
+    console.log('✅ [Backend] Saved booking data:', {
+      _id: savedBooking._id,
+      priceBreakdown: savedBooking.priceBreakdown,
+      totalAmount: savedBooking.totalAmount,
+      paymentReference: savedBooking.paymentReference,
+      paymentMethod: savedBooking.paymentMethod,
+      checkIn: savedBooking.checkIn,
+      checkOut: savedBooking.checkOut,
+      affiliateCode: savedBooking.affiliateCode || 'none',
+      nights: Math.ceil((new Date(savedBooking.checkOut) - new Date(savedBooking.checkIn)) / (1000 * 60 * 60 * 24))
+    });
+
+    // Populate booking data for response
+    await booking.populate('property', 'title location images price specifications utilityPercentage serviceChargePercentage vatPercentage calculatedPrices');
+    await booking.populate('user', 'firstName lastName email');
+
+    // Send email notification to admin
+    try {
+      await emailService.sendNewBookingNotification(booking);
+    } catch (emailError) {
+      console.error('Failed to send booking notification:', emailError);
+    }
+
+    // Send different messages based on payment method
+    let successMessage = "Booking created successfully. Please complete payment to confirm your booking.";
+    
+    if (paymentMethod === 'bank_transfer') {
+      successMessage = "Booking created successfully. Please make a bank transfer to the provided account and upload proof of payment.";
+    } else if (paymentMethod === 'onsite') {
+      successMessage = "Booking created successfully. Please proceed to the property for check-in and payment.";
+    }
+
+    // Add affiliate message if code was applied
+    if (affiliateInfo) {
+      successMessage += ` Affiliate code ${affiliateInfo.code} applied successfully.`;
+    }
+
+    console.log('🎉 [Backend] Booking created successfully:', {
+      bookingId: booking._id,
+      totalAmount: booking.totalAmount,
+      paymentMethod: booking.paymentMethod,
+      affiliateApplied: !!affiliateInfo,
+      nights: nights,
+      priceBreakdown: booking.priceBreakdown
+    });
+
+    // Format the response
+    const responseData = {
+      success: true,
+      message: successMessage,
+      booking: {
+        _id: booking._id,
+        property: booking.property,
+        user: booking.user,
+        checkIn: booking.checkIn,
+        checkOut: booking.checkOut,
+        guests: booking.guests,
+        priceBreakdown: booking.priceBreakdown,
+        totalAmount: booking.totalAmount,
+        paymentStatus: booking.paymentStatus,
+        bookingStatus: booking.bookingStatus,
+        paymentMethod: booking.paymentMethod,
+        paymentReference: booking.paymentReference,
+        specialRequests: booking.specialRequests,
+        createdAt: booking.createdAt,
+        affiliateCode: affiliateInfo ? affiliateInfo.code : null
+      },
+      paymentMethod,
+      priceBreakdown: bookingPriceBreakdown
+    };
+
+    // Include affiliate info in response if applied
+    if (affiliateInfo) {
+      responseData.affiliate = {
+        code: affiliateInfo.code,
+        name: affiliateInfo.name,
+        commissionRate: affiliateInfo.commissionRate
+      };
+    }
+
+    // Include bank details if payment method is bank transfer
+    if (paymentMethod === 'bank_transfer') {
+      responseData.bankDetails = booking.bankTransferDetails;
+    }
+
+    res.status(201).json(responseData);
+
   } catch (error) {
-    console.error('💥 [Backend] Initialize payment error:', {
+    console.error('💥 [Backend] Create booking error:', {
       name: error.name,
       message: error.message,
-      stack: error.stack
+      stack: error.stack,
+      ...(error.name === 'ValidationError' && { errors: error.errors })
     });
     
     // Handle specific errors
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ 
+        success: false,
+        message: "Validation error",
+        error: error.message 
+      });
+    }
+    
     if (error.name === 'CastError') {
       return res.status(400).json({ 
         success: false,
-        message: "Invalid booking ID format" 
+        message: "Invalid property ID format" 
+      });
+    }
+    
+    // Handle duplicate payment reference
+    if (error.code === 11000 && error.keyPattern?.paymentReference) {
+      return res.status(400).json({
+        success: false,
+        message: "Payment reference already exists. Please try again."
       });
     }
     
     res.status(500).json({ 
       success: false,
-      message: "Failed to initialize payment",
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      message: "Failed to create booking", 
+      error: error.message 
     });
   }
 },
+
+
+
+
+
+
+
+
+
+
+initializePayment: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { email } = req.body;
+
+      console.log('🎯 [Backend] Initialize payment called for booking:', id);
+
+      // Validate booking ID
+      if (!id || id === 'undefined' || !mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({ 
+          success: false,
+          message: "Invalid booking ID" 
+        });
+      }
+
+      const booking = await Booking.findById(id)
+        .populate('property', 'title price')
+        .populate('user', 'firstName lastName email');
+
+      if (!booking) {
+        console.log('❌ [Backend] Booking not found:', id);
+        return res.status(404).json({ 
+          success: false,
+          message: "Booking not found" 
+        });
+      }
+
+      // Check if booking belongs to user
+      if (booking.user._id.toString() !== req.user.id && req.user.role !== 'admin') {
+        console.log('❌ [Backend] Access denied for user:', req.user.id);
+        return res.status(403).json({ 
+          success: false,
+          message: "Access denied" 
+        });
+      }
+
+      // Check if booking is already paid
+      if (booking.paymentStatus === 'paid') {
+        console.log('ℹ️ [Backend] Booking already paid:', id);
+        return res.status(400).json({ 
+          success: false,
+          message: "Booking already paid" 
+        });
+      }
+
+      // Check payment method
+      if (booking.paymentMethod !== 'paystack') {
+        console.log('ℹ️ [Backend] Wrong payment method:', booking.paymentMethod);
+        return res.status(400).json({ 
+          success: false,
+          message: `This booking uses ${booking.paymentMethod === 'bank_transfer' ? 'bank transfer' : 'onsite payment'}. Please use the appropriate payment process.` 
+        });
+      }
+
+      // Generate new payment reference if payment was previously initialized but failed
+      if (booking.paystackReference && booking.paymentStatus === 'pending') {
+        booking.paymentReference = `HOLS-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        booking.paystackReference = undefined;
+        await booking.save();
+        console.log('🔄 [Backend] Generated new payment reference:', booking.paymentReference);
+      }
+
+      // Get the amount from priceBreakdown
+      let totalAmountNaira = 0;
+      
+      if (booking.priceBreakdown && booking.priceBreakdown.totalAmount) {
+        totalAmountNaira = booking.priceBreakdown.totalAmount;
+        console.log('💰 [Backend] Using priceBreakdown.totalAmount:', totalAmountNaira);
+      } else if (booking.totalAmount) {
+        totalAmountNaira = booking.totalAmount;
+        console.log('💰 [Backend] Using booking.totalAmount:', totalAmountNaira);
+      } else {
+        console.error('❌ [Backend] No amount found in booking');
+        return res.status(400).json({ 
+          success: false,
+          message: "Booking amount not found" 
+        });
+      }
+      
+      // CRITICAL FIX: Validate and format amount
+      // 1. Ensure it's a number
+      if (typeof totalAmountNaira !== 'number' || isNaN(totalAmountNaira) || !isFinite(totalAmountNaira)) {
+        console.error('❌ [Backend] Invalid amount:', totalAmountNaira);
+        return res.status(400).json({ 
+          success: false,
+          message: "Invalid payment amount" 
+        });
+      }
+      
+      // 2. Round to 2 decimal places to avoid floating point issues
+      totalAmountNaira = Math.round(totalAmountNaira * 100) / 100;
+      
+      // 3. Convert to kobo (Multiply by 100) - THIS IS CRITICAL
+      let totalAmountInKobo = Math.round(totalAmountNaira * 100);
+      
+      // CRITICAL DEBUG: Show conversion
+      console.log('💰 [Backend] AMOUNT CONVERSION:', {
+        bookingId: booking._id,
+        
+        // Your example: ₦157,875
+        nairaAmount: totalAmountNaira,
+        koboAmount: totalAmountInKobo,
+        
+        // Show the exact calculation
+        calculation: `${totalAmountNaira} × 100 = ${totalAmountInKobo}`,
+        
+        // Example: ₦157,875 → 15,787,500 kobo
+        exampleConversion: `₦${totalAmountNaira} → ${totalAmountInKobo} kobo`,
+        
+        // Validation
+        isInteger: Number.isInteger(totalAmountInKobo),
+        isPositive: totalAmountInKobo > 0,
+        meetsMinimum: totalAmountInKobo >= 100,
+        
+        // For your specific example:
+        yourExample: '₦157,875 should be: 157875 × 100 = 15,787,500 kobo'
+      });
+
+      // VALIDATION: Ensure amount is integer in kobo
+      if (!Number.isInteger(totalAmountInKobo)) {
+        console.error('❌ [Backend] Amount in kobo is not integer:', {
+          naira: totalAmountNaira,
+          kobo: totalAmountInKobo,
+          calculation: `${totalAmountNaira} × 100 = ${totalAmountNaira * 100}`
+        });
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid amount conversion. Amount must be whole number in kobo.'
+        });
+      }
+
+      // VALIDATION: Minimum amount (₦1 = 100 kobo)
+      if (totalAmountInKobo < 100) {
+        console.error('❌ [Backend] Amount too small:', {
+          naira: totalAmountNaira,
+          kobo: totalAmountInKobo,
+          minRequired: 100
+        });
+        return res.status(400).json({
+          success: false,
+          message: `Amount (₦${totalAmountNaira}) is too small. Minimum is ₦1.`
+        });
+      }
+
+      // VALIDATION: Check if amount is ridiculously large (potential double conversion)
+      if (totalAmountInKobo > 1000000000) { // 10 million Naira
+        console.error('❌ [Backend] Amount suspiciously large:', {
+          naira: totalAmountNaira,
+          kobo: totalAmountInKobo,
+          warning: 'Possible double conversion (naira × 100 × 100)'
+        });
+        return res.status(400).json({
+          success: false,
+          message: `Amount error. Please check calculation: ₦${totalAmountNaira} should be ${totalAmountInKobo} kobo`
+        });
+      }
+
+      console.log('🎯 [Backend] Calling Paystack with:', {
+        email: email || booking.user.email,
+        amountInKobo: totalAmountInKobo,
+        amountInNaira: totalAmountNaira,
+        reference: booking.paymentReference,
+        conversion: `${totalAmountNaira} NGN = ${totalAmountInKobo} kobo`,
+        bookingId: booking._id
+      });
+
+      try {
+        // Initialize Paystack payment - amount MUST be in kobo
+        const paymentData = await paystack.initializeTransaction({
+          email: email || booking.user.email,
+          amount: totalAmountInKobo,  // THIS MUST BE IN KOBO (15787500 for ₦157,875)
+          reference: booking.paymentReference,
+          metadata: {
+            bookingId: booking._id.toString(),
+            propertyTitle: booking.property?.title || 'Unknown Property',
+            customerName: `${booking.user.firstName} ${booking.user.lastName}`,
+            paymentMethod: 'paystack',
+            totalAmountNaira: totalAmountNaira,
+            totalAmountKobo: totalAmountInKobo
+          },
+          callback_url: `${process.env.CLIENT_URL}/booking/success`
+        });
+
+        console.log('✅ [Backend] Paystack response received:', {
+          hasAuthorizationUrl: !!paymentData?.authorization_url,
+          reference: paymentData?.reference
+        });
+
+        if (!paymentData || !paymentData.authorization_url) {
+          console.error('❌ [Backend] Invalid Paystack response:', paymentData);
+          return res.status(500).json({ 
+            success: false,
+            message: "Payment gateway error" 
+          });
+        }
+
+        // Update booking with Paystack reference
+        booking.paystackReference = paymentData.reference;
+        await booking.save();
+
+        console.log('✅ [Backend] Payment initialized successfully:', {
+          bookingId: booking._id,
+          amountNaira: totalAmountNaira,
+          amountKobo: totalAmountInKobo,
+          reference: paymentData.reference,
+          authorizationUrl: paymentData.authorization_url
+        });
+
+        // Return response
+        res.status(200).json({
+          success: true,
+          message: "Payment initialized successfully",
+          authorization_url: paymentData.authorization_url,
+          reference: paymentData.reference,
+          access_code: paymentData.access_code,
+          amount: totalAmountNaira,
+          amountInKobo: totalAmountInKobo,
+          bookingId: booking._id
+        });
+
+      } catch (paystackError) {
+        console.error('💥 [Backend] Paystack API Error:', {
+          message: paystackError.message,
+          response: paystackError.response?.data,
+          status: paystackError.response?.status
+        });
+        
+        // Update booking status
+        booking.paymentStatus = 'failed';
+        await booking.save();
+        
+        // Check for specific Paystack errors
+        const paystackResponse = paystackError.response?.data;
+        
+        if (paystackResponse?.message?.includes('Invalid Amount')) {
+          console.error('🔍 [Backend] INVALID AMOUNT ERROR DETAILS:', {
+            // What we sent
+            sentAmountKobo: totalAmountInKobo,
+            sentAmountNaira: totalAmountNaira,
+            
+            // For debugging
+            conversionCheck: {
+              expected: `₦${totalAmountNaira} → ${totalAmountNaira * 100} kobo`,
+              actualSent: `${totalAmountInKobo} kobo`,
+              calculation: `${totalAmountNaira} × 100 = ${totalAmountInKobo}`,
+              isCorrect: totalAmountInKobo === totalAmountNaira * 100
+            },
+            
+            // Paystack response
+            paystackError: paystackResponse
+          });
+          
+          // Provide clear error message
+          let errorMessage = `Payment amount error. We sent ${totalAmountInKobo} kobo (₦${totalAmountNaira}). `;
+          
+          // Check for common mistakes
+          if (totalAmountInKobo === totalAmountNaira) {
+            errorMessage += "ERROR: Amount was NOT converted to kobo (should be naira × 100).";
+          } else if (totalAmountInKobo === totalAmountNaira * 10000) {
+            errorMessage += "ERROR: Double conversion detected (naira × 100 × 100).";
+          } else {
+            errorMessage += "Please verify the amount is correctly converted to kobo.";
+          }
+          
+          return res.status(400).json({ 
+            success: false,
+            message: errorMessage,
+            details: {
+              nairaAmount: totalAmountNaira,
+              koboAmountSent: totalAmountInKobo,
+              expectedKobo: totalAmountNaira * 100,
+              paystackError: paystackResponse?.message
+            }
+          });
+        }
+        
+        // Generic error
+        return res.status(400).json({ 
+          success: false,
+          message: paystackError.message || 'Payment initialization failed'
+        });
+      }
+
+    } catch (error) {
+      console.error('💥 [Backend] Initialize payment error:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
+      
+      // Handle specific errors
+      if (error.name === 'CastError') {
+        return res.status(400).json({ 
+          success: false,
+          message: "Invalid booking ID format" 
+        });
+      }
+      
+      res.status(500).json({ 
+        success: false,
+        message: "Failed to initialize payment",
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      });
+    }
+  },
 
   
 
@@ -993,99 +1442,99 @@ const bookingController = {
 
 
 // Quick fix - Update markOnsitePaymentCollected function
-markOnsitePaymentCollected: async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { receiptNumber, collectedAt } = req.body;
+  markOnsitePaymentCollected: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { receiptNumber, collectedAt } = req.body;
 
-    const booking = await Booking.findById(id)
-      .populate('property')
-      .populate('user');
+      const booking = await Booking.findById(id)
+        .populate('property')
+        .populate('user');
 
-    if (!booking) {
-      return res.status(404).json({ 
-        success: false,
-        message: "Booking not found" 
-      });
-    }
+      if (!booking) {
+        return res.status(404).json({ 
+          success: false,
+          message: "Booking not found" 
+        });
+      }
 
-    if (booking.paymentMethod !== 'onsite') {
-      return res.status(400).json({ 
-        success: false,
-        message: "This booking is not for onsite payment" 
-      });
-    }
+      if (booking.paymentMethod !== 'onsite') {
+        return res.status(400).json({ 
+          success: false,
+          message: "This booking is not for onsite payment" 
+        });
+      }
 
-    // Check if property is still available
-    const isStillAvailable = await Booking.checkAvailability(
-      booking.property._id, 
-      booking.checkIn, 
-      booking.checkOut,
-      booking._id
-    );
+      // Check if property is still available
+      const isStillAvailable = await Booking.checkAvailability(
+        booking.property._id, 
+        booking.checkIn, 
+        booking.checkOut,
+        booking._id
+      );
 
-    if (!isStillAvailable) {
-      return res.status(400).json({
-        success: false,
-        message: "Property is no longer available for the selected dates."
-      });
-    }
+      if (!isStillAvailable) {
+        return res.status(400).json({
+          success: false,
+          message: "Property is no longer available for the selected dates."
+        });
+      }
 
-    // FIX: Handle date parsing properly
-    let collectedDate;
-    if (collectedAt) {
-      collectedDate = new Date(collectedAt);
-      // If date is invalid, use current date
-      if (isNaN(collectedDate.getTime())) {
+      // FIX: Handle date parsing properly
+      let collectedDate;
+      if (collectedAt) {
+        collectedDate = new Date(collectedAt);
+        // If date is invalid, use current date
+        if (isNaN(collectedDate.getTime())) {
+          collectedDate = new Date();
+        }
+      } else {
         collectedDate = new Date();
       }
-    } else {
-      collectedDate = new Date();
+
+      // Update onsite payment details
+      booking.paymentStatus = 'paid';
+      booking.bookingStatus = 'confirmed';
+      
+      // Ensure onsitePaymentDetails exists as a plain object
+      const onsiteDetails = booking.onsitePaymentDetails || {};
+      onsiteDetails.status = 'collected';
+      onsiteDetails.collectedBy = req.user.id;
+      onsiteDetails.collectedAt = collectedDate;
+      onsiteDetails.receiptNumber = receiptNumber || `REC-${Date.now()}`;
+      
+      // Set the updated object
+      booking.onsitePaymentDetails = onsiteDetails;
+
+      // Update property total bookings
+      await Property.findByIdAndUpdate(booking.property._id, {
+        $inc: { totalBookings: 1 }
+      });
+
+      // Send confirmation email
+      try {
+        await emailService.sendBookingConfirmation(booking);
+      } catch (emailError) {
+        console.error('Failed to send confirmation email:', emailError);
+      }
+
+      await booking.save();
+
+      res.status(200).json({
+        success: true,
+        message: "Onsite payment marked as collected",
+        booking
+      });
+
+    } catch (error) {
+      console.error('Mark onsite payment error:', error);
+      res.status(500).json({ 
+        success: false,
+        message: "Failed to mark payment as collected", 
+        error: error.message 
+      });
     }
-
-    // Update onsite payment details
-    booking.paymentStatus = 'paid';
-    booking.bookingStatus = 'confirmed';
-    
-    // Ensure onsitePaymentDetails exists as a plain object
-    const onsiteDetails = booking.onsitePaymentDetails || {};
-    onsiteDetails.status = 'collected';
-    onsiteDetails.collectedBy = req.user.id;
-    onsiteDetails.collectedAt = collectedDate;
-    onsiteDetails.receiptNumber = receiptNumber || `REC-${Date.now()}`;
-    
-    // Set the updated object
-    booking.onsitePaymentDetails = onsiteDetails;
-
-    // Update property total bookings
-    await Property.findByIdAndUpdate(booking.property._id, {
-      $inc: { totalBookings: 1 }
-    });
-
-    // Send confirmation email
-    try {
-      await emailService.sendBookingConfirmation(booking);
-    } catch (emailError) {
-      console.error('Failed to send confirmation email:', emailError);
-    }
-
-    await booking.save();
-
-    res.status(200).json({
-      success: true,
-      message: "Onsite payment marked as collected",
-      booking
-    });
-
-  } catch (error) {
-    console.error('Mark onsite payment error:', error);
-    res.status(500).json({ 
-      success: false,
-      message: "Failed to mark payment as collected", 
-      error: error.message 
-    });
-  }
-},
+  },
 
   // Get user bookings
   getUserBookings: async (req, res) => {
