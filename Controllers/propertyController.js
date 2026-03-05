@@ -1204,12 +1204,227 @@ getPropertyById: async (req, res) => {
 
 
 
+// createProperty: async (req, res) => {
+//   console.log('🔥🔥🔥 CREATE PROPERTY FUNCTION CALLED 🔥🔥🔥');
+//   console.log('Time:', new Date().toISOString());
+  
+//   // Log the ENTIRE request body
+//   console.log('📦 FULL REQUEST BODY:', req.body);
+  
+//   // Specifically check for discount
+//   console.log('💰 DISCOUNT IN REQUEST BODY:', req.body.discount);
+//   console.log('💰 DISCOUNT TYPE:', typeof req.body.discount);
+  
+//   try {
+//     const {
+//       title,
+//       description,
+//       type,
+//       price,
+//       location,
+//       bedrooms,
+//       bathrooms,
+//       maxGuests,
+//       squareFeet,
+//       amenities,
+//       utilityPercentage,
+//       serviceChargePercentage,
+//       vatPercentage,
+//       discount
+//     } = req.body;
+
+//     console.log('========== CREATE PROPERTY ==========');
+//     console.log('Extracted discount:', discount);
+//     console.log('Discount type after extraction:', typeof discount);
+
+//     // Parse amenities if it's a string
+//     let amenitiesArray = [];
+//     if (amenities) {
+//       try {
+//         amenitiesArray = typeof amenities === 'string' ? JSON.parse(amenities) : amenities;
+//         console.log('Parsed amenities:', amenitiesArray);
+//       } catch (e) {
+//         console.error('Error parsing amenities:', e);
+//       }
+//     }
+
+//     // Handle image uploads
+//     let images = [];
+//     if (req.files && req.files.length > 0) {
+//       images = req.files.map((file, index) => {
+//         const imageUrl = file.cloudinary?.url || file.path;
+//         return {
+//           url: imageUrl,
+//           isMain: index === 0,
+//           order: index
+//         };
+//       });
+//       console.log(`Processed ${images.length} images`);
+//     }
+
+//     if (images.length === 0) {
+//       return res.status(400).json({ message: "At least one image is required" });
+//     }
+
+//     // Create base property data
+//     const propertyData = {
+//       title,
+//       description,
+//       type,
+//       price: parseFloat(price),
+//       utilityPercentage: utilityPercentage ? parseFloat(utilityPercentage) : 20,
+//       serviceChargePercentage: serviceChargePercentage ? parseFloat(serviceChargePercentage) : 10,
+//       vatPercentage: vatPercentage ? parseFloat(vatPercentage) : 7.5,
+//       location,
+//       specifications: {
+//         bedrooms: parseInt(bedrooms) || 0,
+//         bathrooms: parseInt(bathrooms) || 0,
+//         maxGuests: parseInt(maxGuests) || 1,
+//         squareFeet: parseInt(squareFeet) || 0
+//       },
+//       amenities: amenitiesArray,
+//       images,
+//       owner: req.user.id,
+//       status: 'active'
+//     };
+
+//     console.log('Initial propertyData (before discount):', {
+//       title: propertyData.title,
+//       price: propertyData.price,
+//       hasDiscountField: !!propertyData.discount
+//     });
+
+//     // ========== CRITICAL: Parse and add discount if it exists ==========
+//     console.log('🔍 PROCESSING DISCOUNT DATA...');
+    
+//     if (discount) {
+//       console.log('✅ Discount exists in request');
+//       console.log('Discount value:', discount);
+//       console.log('Discount type:', typeof discount);
+      
+//       try {
+//         // Parse discount if it's a string
+//         let discountData;
+//         if (typeof discount === 'string') {
+//           console.log('Parsing discount string:', discount);
+//           discountData = JSON.parse(discount);
+//         } else {
+//           discountData = discount;
+//         }
+        
+//         console.log('✅ Parsed discount data:', discountData);
+//         console.log('Discount isActive:', discountData?.isActive);
+//         console.log('Discount type:', discountData?.type);
+//         console.log('Discount value:', discountData?.value);
+        
+//         // Validate discount data has required fields
+//         if (discountData && discountData.isActive === true && discountData.type && discountData.value !== undefined) {
+//           // Create the discount object
+//           const discountObject = {
+//             type: discountData.type,
+//             value: parseFloat(discountData.value),
+//             isActive: true
+//           };
+          
+//           // Add optional date fields
+//           if (discountData.startDate && discountData.startDate !== null && discountData.startDate !== 'null') {
+//             discountObject.startDate = new Date(discountData.startDate);
+//             console.log('Added startDate:', discountObject.startDate);
+//           }
+          
+//           if (discountData.endDate && discountData.endDate !== null && discountData.endDate !== 'null') {
+//             discountObject.endDate = new Date(discountData.endDate);
+//             console.log('Added endDate:', discountObject.endDate);
+//           }
+          
+//           // IMPORTANT: Assign to propertyData
+//           propertyData.discount = discountObject;
+          
+//           console.log('✅✅✅ DISCOUNT ADDED TO PROPERTYDATA:', propertyData.discount);
+//           console.log('Discount type:', propertyData.discount.type);
+//           console.log('Discount value:', propertyData.discount.value);
+//           console.log('Discount isActive:', propertyData.discount.isActive);
+//         } else {
+//           console.log('❌ Discount validation failed:', {
+//             hasData: !!discountData,
+//             isActive: discountData?.isActive,
+//             hasType: !!discountData?.type,
+//             hasValue: discountData?.value !== undefined
+//           });
+//         }
+//       } catch (e) {
+//         console.error('❌❌❌ ERROR PARSING DISCOUNT:', e);
+//         console.error('Raw discount value that caused error:', discount);
+//       }
+//     } else {
+//       console.log('ℹ️ No discount data received in request');
+//     }
+
+//     console.log('📦 FINAL PROPERTYDATA BEFORE SAVE:', JSON.stringify(propertyData, null, 2));
+//     console.log('Does propertyData have discount?', !!propertyData.discount);
+//     if (propertyData.discount) {
+//       console.log('Discount in propertyData:', propertyData.discount);
+//     }
+
+//     // Create property with all data
+//     const property = new Property(propertyData);
+
+//     // Save to database
+//     await property.save();
+//     console.log('✅ Property saved to database');
+
+//     // Check what was actually saved
+//     const savedProperty = await Property.findById(property._id).lean();
+//     console.log('📦 SAVED PROPERTY FROM DATABASE:', {
+//       id: savedProperty._id,
+//       price: savedProperty.price,
+//       hasDiscount: !!savedProperty.discount,
+//       discount: savedProperty.discount
+//     });
+
+//     // Add property to user's propertyList
+//     await User.findByIdAndUpdate(req.user.id, {
+//       $push: { propertyList: property._id }
+//     });
+
+//     // Populate the property
+//     const populatedProperty = await Property.findById(property._id)
+//       .populate('owner', 'firstName lastName email profileImagePath')
+//       .populate('amenities', 'name icon category');
+
+//     console.log('✅ Final populated property discount:', populatedProperty.discount);
+
+//     res.status(201).json({
+//       message: "Property created successfully",
+//       property: populatedProperty,
+//       priceBreakdown: property.priceBreakdown
+//     });
+
+//   } catch (err) {
+//     console.error('❌❌❌ CREATE PROPERTY ERROR:', err);
+//     res.status(500).json({ 
+//       message: "Failed to create property", 
+//       error: err.message 
+//     });
+//   }
+// },
+
+
+
+
+
+
+
+
+
 createProperty: async (req, res) => {
   console.log('🔥🔥🔥 CREATE PROPERTY FUNCTION CALLED 🔥🔥🔥');
   console.log('Time:', new Date().toISOString());
+  console.log('Request user:', req.user?.id);
   
   // Log the ENTIRE request body
   console.log('📦 FULL REQUEST BODY:', req.body);
+  console.log('📦 REQUEST BODY TYPE:', typeof req.body);
   
   // Specifically check for discount
   console.log('💰 DISCOUNT IN REQUEST BODY:', req.body.discount);
@@ -1233,16 +1448,21 @@ createProperty: async (req, res) => {
       discount
     } = req.body;
 
-    console.log('========== CREATE PROPERTY ==========');
-    console.log('Extracted discount:', discount);
-    console.log('Discount type after extraction:', typeof discount);
+    console.log('========== CREATE PROPERTY DETAILS ==========');
+    console.log('Extracted fields:');
+    console.log('- title:', title);
+    console.log('- price:', price, typeof price);
+    console.log('- utilityPercentage:', utilityPercentage);
+    console.log('- serviceChargePercentage:', serviceChargePercentage);
+    console.log('- vatPercentage:', vatPercentage);
+    console.log('- discount:', discount, typeof discount);
 
     // Parse amenities if it's a string
     let amenitiesArray = [];
     if (amenities) {
       try {
         amenitiesArray = typeof amenities === 'string' ? JSON.parse(amenities) : amenities;
-        console.log('Parsed amenities:', amenitiesArray);
+        console.log('Parsed amenities:', amenitiesArray.length, 'items');
       } catch (e) {
         console.error('Error parsing amenities:', e);
       }
@@ -1288,69 +1508,89 @@ createProperty: async (req, res) => {
       status: 'active'
     };
 
-    console.log('Initial propertyData (before discount):', {
-      title: propertyData.title,
-      price: propertyData.price,
-      hasDiscountField: !!propertyData.discount
-    });
+    console.log('📝 Initial propertyData created:');
+    console.log('- price:', propertyData.price);
+    console.log('- utilityPercentage:', propertyData.utilityPercentage);
+    console.log('- serviceChargePercentage:', propertyData.serviceChargePercentage);
+    console.log('- vatPercentage:', propertyData.vatPercentage);
+    console.log('- has discount field yet?', !!propertyData.discount);
 
     // ========== CRITICAL: Parse and add discount if it exists ==========
-    console.log('🔍 PROCESSING DISCOUNT DATA...');
+    console.log('\n🔍 PROCESSING DISCOUNT DATA...');
     
     if (discount) {
       console.log('✅ Discount exists in request');
-      console.log('Discount value:', discount);
+      console.log('Raw discount value:', discount);
       console.log('Discount type:', typeof discount);
       
       try {
         // Parse discount if it's a string
         let discountData;
         if (typeof discount === 'string') {
-          console.log('Parsing discount string:', discount);
-          discountData = JSON.parse(discount);
+          console.log('Parsing discount string...');
+          // Check if it's a valid JSON string
+          if (discount.trim().startsWith('{')) {
+            discountData = JSON.parse(discount);
+            console.log('✅ Successfully parsed JSON string');
+          } else {
+            console.log('⚠️ Discount is a string but not JSON, treating as raw value');
+            discountData = { value: discount };
+          }
         } else {
           discountData = discount;
+          console.log('Discount is already an object');
         }
         
-        console.log('✅ Parsed discount data:', discountData);
-        console.log('Discount isActive:', discountData?.isActive);
-        console.log('Discount type:', discountData?.type);
-        console.log('Discount value:', discountData?.value);
+        console.log('📊 Parsed discount data:', JSON.stringify(discountData, null, 2));
+        console.log('- isActive:', discountData?.isActive);
+        console.log('- type:', discountData?.type);
+        console.log('- value:', discountData?.value);
+        console.log('- startDate:', discountData?.startDate);
+        console.log('- endDate:', discountData?.endDate);
         
         // Validate discount data has required fields
-        if (discountData && discountData.isActive === true && discountData.type && discountData.value !== undefined) {
-          // Create the discount object
-          const discountObject = {
-            type: discountData.type,
-            value: parseFloat(discountData.value),
-            isActive: true
-          };
+        if (discountData && discountData.isActive === true) {
+          console.log('✅ Discount is active');
           
-          // Add optional date fields
-          if (discountData.startDate && discountData.startDate !== null && discountData.startDate !== 'null') {
-            discountObject.startDate = new Date(discountData.startDate);
-            console.log('Added startDate:', discountObject.startDate);
+          if (discountData.type && discountData.value !== undefined) {
+            console.log('✅ Discount has required fields (type and value)');
+            
+            // Create the discount object
+            const discountObject = {
+              type: discountData.type,
+              value: parseFloat(discountData.value),
+              isActive: true
+            };
+            
+            // Add optional date fields
+            if (discountData.startDate && discountData.startDate !== null && discountData.startDate !== 'null') {
+              discountObject.startDate = new Date(discountData.startDate);
+              console.log('✅ Added startDate:', discountObject.startDate);
+            }
+            
+            if (discountData.endDate && discountData.endDate !== null && discountData.endDate !== 'null') {
+              discountObject.endDate = new Date(discountData.endDate);
+              console.log('✅ Added endDate:', discountObject.endDate);
+            }
+            
+            // IMPORTANT: Assign to propertyData
+            propertyData.discount = discountObject;
+            
+            console.log('✅✅✅ DISCOUNT ADDED TO PROPERTYDATA:');
+            console.log('- discount object:', JSON.stringify(propertyData.discount, null, 2));
+            console.log('- discount.type:', propertyData.discount.type);
+            console.log('- discount.value:', propertyData.discount.value);
+            console.log('- discount.isActive:', propertyData.discount.isActive);
+          } else {
+            console.log('❌ Discount missing required fields:', {
+              hasType: !!discountData.type,
+              hasValue: discountData.value !== undefined
+            });
           }
-          
-          if (discountData.endDate && discountData.endDate !== null && discountData.endDate !== 'null') {
-            discountObject.endDate = new Date(discountData.endDate);
-            console.log('Added endDate:', discountObject.endDate);
-          }
-          
-          // IMPORTANT: Assign to propertyData
-          propertyData.discount = discountObject;
-          
-          console.log('✅✅✅ DISCOUNT ADDED TO PROPERTYDATA:', propertyData.discount);
-          console.log('Discount type:', propertyData.discount.type);
-          console.log('Discount value:', propertyData.discount.value);
-          console.log('Discount isActive:', propertyData.discount.isActive);
         } else {
-          console.log('❌ Discount validation failed:', {
-            hasData: !!discountData,
-            isActive: discountData?.isActive,
-            hasType: !!discountData?.type,
-            hasValue: discountData?.value !== undefined
-          });
+          console.log('❌ Discount is not active or missing isActive flag');
+          if (!discountData) console.log('  - discountData is null/undefined');
+          else if (!discountData.isActive) console.log('  - isActive is not true (value:', discountData.isActive, ')');
         }
       } catch (e) {
         console.error('❌❌❌ ERROR PARSING DISCOUNT:', e);
@@ -1360,27 +1600,39 @@ createProperty: async (req, res) => {
       console.log('ℹ️ No discount data received in request');
     }
 
-    console.log('📦 FINAL PROPERTYDATA BEFORE SAVE:', JSON.stringify(propertyData, null, 2));
-    console.log('Does propertyData have discount?', !!propertyData.discount);
+    console.log('\n📦 FINAL PROPERTYDATA BEFORE SAVE:');
+    console.log('- title:', propertyData.title);
+    console.log('- price:', propertyData.price);
+    console.log('- has discount?', !!propertyData.discount);
     if (propertyData.discount) {
-      console.log('Discount in propertyData:', propertyData.discount);
+      console.log('- discount:', JSON.stringify(propertyData.discount, null, 2));
+    } else {
+      console.log('- discount: NOT PRESENT');
     }
 
     // Create property with all data
     const property = new Property(propertyData);
+    console.log('✅ Property instance created');
 
     // Save to database
     await property.save();
-    console.log('✅ Property saved to database');
+    console.log('✅ Property saved to database with ID:', property._id);
 
-    // Check what was actually saved
+    // Check what was actually saved by fetching it fresh from database
     const savedProperty = await Property.findById(property._id).lean();
-    console.log('📦 SAVED PROPERTY FROM DATABASE:', {
-      id: savedProperty._id,
-      price: savedProperty.price,
-      hasDiscount: !!savedProperty.discount,
-      discount: savedProperty.discount
-    });
+    console.log('\n📦 VERIFYING SAVED PROPERTY FROM DATABASE:');
+    console.log('- ID:', savedProperty._id);
+    console.log('- Title:', savedProperty.title);
+    console.log('- Price:', savedProperty.price);
+    console.log('- Has discount in DB?', !!savedProperty.discount);
+    if (savedProperty.discount) {
+      console.log('- Discount in DB:', JSON.stringify(savedProperty.discount, null, 2));
+      console.log('- Discount type:', savedProperty.discount.type);
+      console.log('- Discount value:', savedProperty.discount.value);
+      console.log('- Discount isActive:', savedProperty.discount.isActive);
+    } else {
+      console.log('❌❌❌ DISCOUNT NOT FOUND IN DATABASE!');
+    }
 
     // Add property to user's propertyList
     await User.findByIdAndUpdate(req.user.id, {
@@ -1392,7 +1644,12 @@ createProperty: async (req, res) => {
       .populate('owner', 'firstName lastName email profileImagePath')
       .populate('amenities', 'name icon category');
 
-    console.log('✅ Final populated property discount:', populatedProperty.discount);
+    console.log('\n✅ Final populated property:');
+    console.log('- ID:', populatedProperty._id);
+    console.log('- Has discount?', !!populatedProperty.discount);
+    if (populatedProperty.discount) {
+      console.log('- Discount in populated:', populatedProperty.discount);
+    }
 
     res.status(201).json({
       message: "Property created successfully",
@@ -1408,6 +1665,11 @@ createProperty: async (req, res) => {
     });
   }
 },
+
+
+
+
+
 
 
 
@@ -1445,6 +1707,73 @@ debugCreateProperty: async (req, res) => {
       message: 'Debug test property created',
       property: testProperty,
       discount: testProperty.discount
+    });
+  } catch (err) {
+    console.error('Debug error:', err);
+    res.status(500).json({ error: err.message });
+  }
+},
+
+
+// Add this temporary debug endpoint
+debugCheckProperty: async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    if (!id) {
+      // If no ID provided, check the most recent property
+      const latestProperty = await Property.findOne().sort({ createdAt: -1 }).lean();
+      
+      if (!latestProperty) {
+        return res.status(404).json({ message: "No properties found" });
+      }
+      
+      console.log('🔍 LATEST PROPERTY FROM DATABASE:');
+      console.log('ID:', latestProperty._id);
+      console.log('Title:', latestProperty.title);
+      console.log('Price:', latestProperty.price);
+      console.log('Has discount field:', !!latestProperty.discount);
+      console.log('Discount object:', latestProperty.discount);
+      console.log('Discount type:', latestProperty.discount?.type);
+      console.log('Discount value:', latestProperty.discount?.value);
+      console.log('Discount isActive:', latestProperty.discount?.isActive);
+      
+      return res.json({
+        message: 'Latest property data',
+        property: latestProperty
+      });
+    }
+    
+    // Get specific property by ID
+    const property = await Property.findById(id).lean();
+    
+    if (!property) {
+      return res.status(404).json({ message: "Property not found" });
+    }
+    
+    console.log('🔍 PROPERTY FROM DATABASE:', {
+      id: property._id,
+      title: property.title,
+      price: property.price,
+      hasDiscount: !!property.discount,
+      discount: property.discount,
+      discountType: property.discount?.type,
+      discountValue: property.discount?.value,
+      discountIsActive: property.discount?.isActive,
+      discountStartDate: property.discount?.startDate,
+      discountEndDate: property.discount?.endDate
+    });
+    
+    res.json({
+      message: 'Property data from database',
+      property: {
+        _id: property._id,
+        title: property.title,
+        price: property.price,
+        discount: property.discount,
+        discountedPrice: property.discountedPrice,
+        hasDiscount: !!property.discount
+      }
     });
   } catch (err) {
     console.error('Debug error:', err);
@@ -1587,6 +1916,181 @@ debugCreateProperty: async (req, res) => {
 
 
 
+// updateProperty: async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const updateData = { ...req.body };
+
+//     console.log('========== UPDATE PROPERTY ==========');
+//     console.log('Property ID:', id);
+//     console.log('Update data:', updateData);
+//     console.log('Discount in updateData:', updateData.discount);
+
+//     // Find property and check ownership
+//     const property = await Property.findById(id);
+//     if (!property) {
+//       return res.status(404).json({ message: "Property not found" });
+//     }
+
+//     // Check if user owns the property or is admin
+//     if (property.owner.toString() !== req.user.id && req.user.role !== 'admin') {
+//       return res.status(403).json({ message: "Access denied" });
+//     }
+
+//     // Handle specifications update
+//     if (updateData.bedrooms || updateData.bathrooms || updateData.maxGuests || updateData.squareFeet) {
+//       updateData.specifications = {
+//         bedrooms: parseInt(updateData.bedrooms) || property.specifications.bedrooms,
+//         bathrooms: parseInt(updateData.bathrooms) || property.specifications.bathrooms,
+//         maxGuests: parseInt(updateData.maxGuests) || property.specifications.maxGuests,
+//         squareFeet: parseInt(updateData.squareFeet) || property.specifications.squareFeet
+//       };
+//       delete updateData.bedrooms;
+//       delete updateData.bathrooms;
+//       delete updateData.maxGuests;
+//       delete updateData.squareFeet;
+//     }
+
+//     // Handle amenities update
+//     if (updateData.amenities) {
+//       const amenitiesArray = typeof updateData.amenities === 'string' 
+//         ? JSON.parse(updateData.amenities) 
+//         : updateData.amenities;
+      
+//       // Validate amenities exist and are active
+//       if (amenitiesArray.length > 0) {
+//         const existingAmenities = await Amenity.find({
+//           _id: { $in: amenitiesArray },
+//           isActive: true
+//         });
+        
+//         if (existingAmenities.length !== amenitiesArray.length) {
+//           return res.status(400).json({ 
+//             message: "Some amenities are invalid or inactive" 
+//           });
+//         }
+//       }
+      
+//       updateData.amenities = amenitiesArray;
+//     }
+
+//     // Handle price-related field updates
+//     if (updateData.price !== undefined) {
+//       updateData.price = parseFloat(updateData.price);
+//     }
+//     if (updateData.utilityPercentage !== undefined) {
+//       updateData.utilityPercentage = parseFloat(updateData.utilityPercentage);
+//     }
+//     if (updateData.serviceChargePercentage !== undefined) {
+//       updateData.serviceChargePercentage = parseFloat(updateData.serviceChargePercentage);
+//     }
+//     if (updateData.vatPercentage !== undefined) {
+//       updateData.vatPercentage = parseFloat(updateData.vatPercentage);
+//     }
+
+//     // ========== HANDLE DISCOUNT UPDATE ==========
+//     console.log('Processing discount update...');
+    
+//     if (updateData.discount !== undefined) {
+//       try {
+//         // If discount is null or empty, remove discount
+//         if (updateData.discount === null || updateData.discount === 'null') {
+//           updateData.discount = null;
+//           console.log('Removing discount');
+//         } 
+//         // If discount is provided
+//         else if (updateData.discount) {
+//           const discountData = typeof updateData.discount === 'string' 
+//             ? JSON.parse(updateData.discount) 
+//             : updateData.discount;
+          
+//           console.log('Parsed discount data for update:', discountData);
+          
+//           // Only add discount if it's active and has valid data
+//           if (discountData && discountData.isActive === true && discountData.type && discountData.value) {
+//             updateData.discount = {
+//               type: discountData.type,
+//               value: parseFloat(discountData.value),
+//               startDate: discountData.startDate ? new Date(discountData.startDate) : null,
+//               endDate: discountData.endDate ? new Date(discountData.endDate) : null,
+//               isActive: true
+//             };
+//             console.log('✅ Updated discount:', updateData.discount);
+//           } else {
+//             // If discount is provided but not active, remove it
+//             console.log('Discount not active or invalid, removing');
+//             updateData.discount = null;
+//           }
+//         }
+//       } catch (e) {
+//         console.error('Error parsing discount in update:', e);
+//         updateData.discount = null;
+//       }
+//     }
+
+//     // Handle image uploads for Cloudinary
+//     if (req.files && req.files.length > 0) {
+//       const newImages = req.files.map((file, index) => {
+//         const imageUrl = file.cloudinary?.url || file.path;
+        
+//         console.log('Adding new image:', {
+//           originalName: file.originalname,
+//           cloudinaryUrl: file.cloudinary?.url,
+//           finalUrl: imageUrl
+//         });
+        
+//         return {
+//           url: imageUrl,
+//           isMain: property.images.length === 0 && index === 0,
+//           order: property.images.length + index
+//         };
+//       });
+      
+//       updateData.$push = { images: { $each: newImages } };
+//     }
+
+//     console.log('Final updateData.discount:', updateData.discount);
+
+//     const updatedProperty = await Property.findByIdAndUpdate(
+//       id,
+//       updateData,
+//       { new: true, runValidators: true }
+//     )
+//       .populate('owner', 'firstName lastName profileImagePath')
+//       .populate('amenities', 'name icon category');
+
+//     // Log updated price breakdown
+//     console.log('Property updated with price breakdown:', {
+//       actualPrice: updatedProperty.price,
+//       discount: updatedProperty.discount,
+//       discountedPrice: updatedProperty.discountedPrice,
+//       isDiscountActive: updatedProperty.isDiscountActive ? updatedProperty.isDiscountActive() : false,
+//       utilityPercentage: updatedProperty.utilityPercentage,
+//       serviceChargePercentage: updatedProperty.serviceChargePercentage,
+//       vatPercentage: updatedProperty.vatPercentage,
+//       calculatedPrices: updatedProperty.calculatedPrices,
+//       priceBreakdown: updatedProperty.priceBreakdown
+//     });
+
+//     res.status(200).json({
+//       message: "Property updated successfully",
+//       property: updatedProperty,
+//       priceBreakdown: updatedProperty.priceBreakdown
+//     });
+
+//   } catch (err) {
+//     console.error('Update property error:', err);
+//     res.status(500).json({ 
+//       message: "Failed to update property", 
+//       error: err.message 
+//     });
+//   }
+// },
+
+
+
+
+
 updateProperty: async (req, res) => {
   try {
     const { id } = req.params;
@@ -1594,8 +2098,9 @@ updateProperty: async (req, res) => {
 
     console.log('========== UPDATE PROPERTY ==========');
     console.log('Property ID:', id);
-    console.log('Update data:', updateData);
+    console.log('Update data received:', updateData);
     console.log('Discount in updateData:', updateData.discount);
+    console.log('Discount type:', typeof updateData.discount);
 
     // Find property and check ownership
     const property = await Property.findById(id);
@@ -1628,7 +2133,6 @@ updateProperty: async (req, res) => {
         ? JSON.parse(updateData.amenities) 
         : updateData.amenities;
       
-      // Validate amenities exist and are active
       if (amenitiesArray.length > 0) {
         const existingAmenities = await Amenity.find({
           _id: { $in: amenitiesArray },
@@ -1660,36 +2164,68 @@ updateProperty: async (req, res) => {
     }
 
     // ========== HANDLE DISCOUNT UPDATE ==========
-    console.log('Processing discount update...');
+    console.log('\n🔍 PROCESSING DISCOUNT UPDATE...');
     
     if (updateData.discount !== undefined) {
+      console.log('Discount field present in update');
+      
       try {
         // If discount is null or empty, remove discount
         if (updateData.discount === null || updateData.discount === 'null') {
           updateData.discount = null;
-          console.log('Removing discount');
+          console.log('Removing discount (set to null)');
         } 
         // If discount is provided
         else if (updateData.discount) {
-          const discountData = typeof updateData.discount === 'string' 
-            ? JSON.parse(updateData.discount) 
-            : updateData.discount;
+          console.log('Parsing discount data...');
           
-          console.log('Parsed discount data for update:', discountData);
+          // Parse discount if it's a string
+          let discountData;
+          if (typeof updateData.discount === 'string') {
+            console.log('Discount is string, attempting to parse');
+            try {
+              discountData = JSON.parse(updateData.discount);
+              console.log('✅ Successfully parsed JSON string');
+            } catch (e) {
+              console.error('Failed to parse discount string:', e);
+              discountData = null;
+            }
+          } else {
+            discountData = updateData.discount;
+            console.log('Discount is already an object');
+          }
+          
+          console.log('Parsed discount data:', JSON.stringify(discountData, null, 2));
           
           // Only add discount if it's active and has valid data
-          if (discountData && discountData.isActive === true && discountData.type && discountData.value) {
-            updateData.discount = {
+          if (discountData && discountData.isActive === true && discountData.type && discountData.value !== undefined) {
+            // Create discount object
+            const discountObject = {
               type: discountData.type,
               value: parseFloat(discountData.value),
-              startDate: discountData.startDate ? new Date(discountData.startDate) : null,
-              endDate: discountData.endDate ? new Date(discountData.endDate) : null,
               isActive: true
             };
-            console.log('✅ Updated discount:', updateData.discount);
+            
+            // Add optional date fields
+            if (discountData.startDate && discountData.startDate !== null && discountData.startDate !== 'null') {
+              discountObject.startDate = new Date(discountData.startDate);
+              console.log('Added startDate:', discountObject.startDate);
+            }
+            
+            if (discountData.endDate && discountData.endDate !== null && discountData.endDate !== 'null') {
+              discountObject.endDate = new Date(discountData.endDate);
+              console.log('Added endDate:', discountObject.endDate);
+            }
+            
+            // Assign to updateData
+            updateData.discount = discountObject;
+            console.log('✅✅✅ UPDATED DISCOUNT:', JSON.stringify(updateData.discount, null, 2));
           } else {
-            // If discount is provided but not active, remove it
+            // If discount is provided but not active or invalid, remove it
             console.log('Discount not active or invalid, removing');
+            console.log('- isActive:', discountData?.isActive);
+            console.log('- has type:', !!discountData?.type);
+            console.log('- has value:', discountData?.value !== undefined);
             updateData.discount = null;
           }
         }
@@ -1697,19 +2233,14 @@ updateProperty: async (req, res) => {
         console.error('Error parsing discount in update:', e);
         updateData.discount = null;
       }
+    } else {
+      console.log('No discount field in update data - keeping existing discount');
     }
 
-    // Handle image uploads for Cloudinary
+    // Handle image uploads
     if (req.files && req.files.length > 0) {
       const newImages = req.files.map((file, index) => {
         const imageUrl = file.cloudinary?.url || file.path;
-        
-        console.log('Adding new image:', {
-          originalName: file.originalname,
-          cloudinaryUrl: file.cloudinary?.url,
-          finalUrl: imageUrl
-        });
-        
         return {
           url: imageUrl,
           isMain: property.images.length === 0 && index === 0,
@@ -1718,9 +2249,11 @@ updateProperty: async (req, res) => {
       });
       
       updateData.$push = { images: { $each: newImages } };
+      console.log(`Added ${newImages.length} new images`);
     }
 
-    console.log('Final updateData.discount:', updateData.discount);
+    console.log('\n📦 FINAL UPDATE DATA:', JSON.stringify(updateData, null, 2));
+    console.log('Final discount in updateData:', updateData.discount);
 
     const updatedProperty = await Property.findByIdAndUpdate(
       id,
@@ -1730,18 +2263,8 @@ updateProperty: async (req, res) => {
       .populate('owner', 'firstName lastName profileImagePath')
       .populate('amenities', 'name icon category');
 
-    // Log updated price breakdown
-    console.log('Property updated with price breakdown:', {
-      actualPrice: updatedProperty.price,
-      discount: updatedProperty.discount,
-      discountedPrice: updatedProperty.discountedPrice,
-      isDiscountActive: updatedProperty.isDiscountActive ? updatedProperty.isDiscountActive() : false,
-      utilityPercentage: updatedProperty.utilityPercentage,
-      serviceChargePercentage: updatedProperty.serviceChargePercentage,
-      vatPercentage: updatedProperty.vatPercentage,
-      calculatedPrices: updatedProperty.calculatedPrices,
-      priceBreakdown: updatedProperty.priceBreakdown
-    });
+    console.log('✅ Property updated successfully');
+    console.log('Updated property discount:', updatedProperty.discount);
 
     res.status(200).json({
       message: "Property updated successfully",

@@ -114,6 +114,15 @@ router.post('/debug-create',
 
 
 
+router.get('/debug/check/:id?', 
+  authMiddleware.verifyToken, 
+  propertyController.debugCheckProperty
+);
+
+
+
+
+
 
 
 
